@@ -47,11 +47,14 @@ function isSelfImproveCommand(text) {
   return SELF_IMPROVE_CONTAINS_TRIGGERS.some((t) => norm.includes(t));
 }
 
-// "Youtube'den X cal" / "muzik ac" gibi komutlari algilar. Once cumlenin muzikle ilgili
-// bir baglami olmasi (muzik/sarki/youtube gecmesi) ve "cal"/"ac" gibi bir eylem fiiliyle
-// bitmesi aranir; boylece "Istanbul'da hava nasil" gibi alakasiz cumleler tetiklenmez.
+// "Youtube'den X cal" (eylem sonda) / "youtube muzik ac X" (eylem ortada, sarki adi
+// sonda) gibi komutlari algilar. Once cumlenin muzikle ilgili bir baglami olmasi
+// (muzik/sarki/youtube gecmesi) aranir; boylece "Istanbul'da hava nasil" gibi
+// alakasiz cumleler tetiklenmez. Eylem kelimesi cumlenin HERHANGI bir yerinde
+// aranir (sadece sonda degil) - eylemden SONRA bir sey varsa sarki adi orasi
+// sayilir, yoksa (eylem cumle sonundaysa) eylemden ONCEKI kisim kullanilir.
 const MUSIC_CONTEXT_RE = /(müzik|muzik|şarkı|sarki|youtube)/i;
-const MUSIC_END_TRIGGERS = [
+const MUSIC_ACTION_WORDS = [
   "çalar mısınız", "calar misiniz", "açar mısınız", "acar misiniz",
   "çalabilir misin", "calabilir misin", "açabilir misin", "acabilir misin",
   "çalar mısın", "calar misin", "açar mısın", "acar misin",
@@ -59,17 +62,27 @@ const MUSIC_END_TRIGGERS = [
   "çal", "cal", "aç", "ac", "oynat", "başlat", "baslat",
 ].sort((a, b) => b.length - a.length);
 
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+const MUSIC_ACTION_RE = new RegExp(`\\b(?:${MUSIC_ACTION_WORDS.map(escapeRegExp).join("|")})\\b`, "i");
+
 function parseMusicCommand(text) {
   const norm = normalizeCommand(text);
   if (!MUSIC_CONTEXT_RE.test(norm)) return null;
 
-  const trigger = MUSIC_END_TRIGGERS.find((t) => norm.endsWith(t));
-  if (!trigger) return null;
+  const match = MUSIC_ACTION_RE.exec(norm);
+  if (!match) return null;
 
-  const query = norm
-    .slice(0, norm.length - trigger.length)
+  const before = norm.slice(0, match.index);
+  const after = norm.slice(match.index + match[0].length);
+  const candidate = after.trim().length > 1 ? after : before;
+
+  const query = candidate
     .replace(/youtube\s*'?(dan|den)?/gi, "")
     .replace(/(müzik|muzik|şarkısını|sarkisini|şarkısı|sarkisi|şarkı|sarki)/gi, "")
+    .replace(/^[,\s]+|[,\s]+$/g, "")
     .replace(/\s+/g, " ")
     .trim();
 
