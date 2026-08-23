@@ -32,8 +32,15 @@ calisacak sekilde ayarlanmistir (Google Gemini + tarayici sesi).
     (sistem promptuna dahil edilir).
   - Kod/ozellik seviyesindeki fikirleri `data/self_improvement_proposals.md` dosyasina
     yazar.
-  - En fazla 2 fikir icin otomatik bir **kod yamasi taslagi** hazirlar (hangi dosyanin
-    nasil degisecegini belirler, `data/patches.json` icine "pending" olarak kaydeder).
+  - En fazla 1 fikir icin otomatik bir **kod yamasi taslagi** hazirlar (hangi dosyanin
+    nasil degisecegini belirler, `data/patches.json` icine "pending" olarak kaydeder). Bu
+    sayi kasitli olarak dusuk tutulur: ucretsiz LLM katmanlarinin (Gemini) dakika basina
+    istek siniri var.
+- **Sesli komutla YouTube'dan muzik calma**: "Youtube'den <sarki> calar misin", "muzik ac"
+  gibi bir sey soyleyince, sayfada gomulu bir YouTube oynatici acilip arama sonucunu
+  otomatik calar (API anahtari gerekmez, YouTube'un `listType=search` embed ozelligini
+  kullanir). Tarayicinin otomatik oynatma politikasi engellerse "YouTube'da Ac" linkinden
+  yeni sekmede acilabilir.
 
 ## Kod yamalari: otomatik hazirlanir, insan onayiyla uygulanir
 

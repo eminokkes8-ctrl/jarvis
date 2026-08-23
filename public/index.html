@@ -67,6 +67,26 @@
         </div>
 
         <section id="conversation" class="conversation" aria-live="polite"></section>
+
+        <section id="youtube-panel" class="youtube-panel" hidden>
+          <div class="youtube-panel-header">
+            <span>YouTube Muzik</span>
+            <div class="youtube-panel-actions">
+              <a id="youtube-open-link" class="ghost-button" href="#" target="_blank" rel="noopener">
+                YouTube'da Ac
+              </a>
+              <button id="youtube-close" class="ghost-button" type="button">Kapat</button>
+            </div>
+          </div>
+          <div class="youtube-frame-wrap">
+            <iframe
+              id="youtube-frame"
+              title="YouTube muzik oynatici"
+              allow="autoplay; encrypted-media"
+              allowfullscreen
+            ></iframe>
+          </div>
+        </section>
       </section>
 
       <aside class="side-panels">

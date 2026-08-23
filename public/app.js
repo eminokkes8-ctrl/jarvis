@@ -7,6 +7,10 @@ const learnedContent = document.getElementById("learned-content");
 const patchesContent = document.getElementById("patches-content");
 const ttsAudio = document.getElementById("tts-audio");
 const orb = document.getElementById("orb");
+const youtubePanel = document.getElementById("youtube-panel");
+const youtubeFrame = document.getElementById("youtube-frame");
+const youtubeOpenLink = document.getElementById("youtube-open-link");
+const youtubeClose = document.getElementById("youtube-close");
 
 function setOrbState(state) {
   if (!orb) return;
@@ -39,6 +43,50 @@ function isSelfImproveCommand(text) {
   if (SELF_IMPROVE_EXACT_TRIGGERS.has(norm)) return true;
   return SELF_IMPROVE_CONTAINS_TRIGGERS.some((t) => norm.includes(t));
 }
+
+// "Youtube'den X cal" / "muzik ac" gibi komutlari algilar. Once cumlenin muzikle ilgili
+// bir baglami olmasi (muzik/sarki/youtube gecmesi) ve "cal"/"ac" gibi bir eylem fiiliyle
+// bitmesi aranir; boylece "Istanbul'da hava nasil" gibi alakasiz cumleler tetiklenmez.
+const MUSIC_CONTEXT_RE = /(müzik|muzik|şarkı|sarki|youtube)/i;
+const MUSIC_END_TRIGGERS = [
+  "çalar mısınız", "calar misiniz", "açar mısınız", "acar misiniz",
+  "çalabilir misin", "calabilir misin", "açabilir misin", "acabilir misin",
+  "çalar mısın", "calar misin", "açar mısın", "acar misin",
+  "oynatır mısın", "oynatir misin", "başlatır mısın", "baslatir misin",
+  "çal", "cal", "aç", "ac", "oynat", "başlat", "baslat",
+].sort((a, b) => b.length - a.length);
+
+function parseMusicCommand(text) {
+  const norm = normalizeCommand(text);
+  if (!MUSIC_CONTEXT_RE.test(norm)) return null;
+
+  const trigger = MUSIC_END_TRIGGERS.find((t) => norm.endsWith(t));
+  if (!trigger) return null;
+
+  const query = norm
+    .slice(0, norm.length - trigger.length)
+    .replace(/youtube\s*'?(dan|den)?/gi, "")
+    .replace(/(müzik|muzik|şarkısını|sarkisini|şarkısı|sarkisi|şarkı|sarki)/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return { query: query || null };
+}
+
+function playYouTube(query) {
+  if (!youtubePanel || !youtubeFrame) return;
+  const encoded = encodeURIComponent(query);
+  youtubeFrame.src = `https://www.youtube.com/embed?listType=search&list=${encoded}&autoplay=1`;
+  if (youtubeOpenLink) {
+    youtubeOpenLink.href = `https://www.youtube.com/results?search_query=${encoded}`;
+  }
+  youtubePanel.hidden = false;
+}
+
+youtubeClose?.addEventListener("click", () => {
+  if (youtubeFrame) youtubeFrame.src = "";
+  if (youtubePanel) youtubePanel.hidden = true;
+});
 
 // Ses motoru: "browser" (Web Speech API, ucretsiz, API anahtari gerekmez, Chrome/Edge onerilir)
 // ya da "openai" (Whisper + TTS, ucretli, .env icinde OPENAI_API_KEY gerekir).
@@ -244,6 +292,18 @@ async function processUserText(userText) {
   if (isSelfImproveCommand(userText)) {
     await speak("Tamam, kendimi gelistirmeye basliyorum.");
     await runSelfImprove();
+    return;
+  }
+
+  const musicCommand = parseMusicCommand(userText);
+  if (musicCommand) {
+    if (!musicCommand.query) {
+      addBubble("system", "Hangi sarkiyi calmami istedigini anlayamadim, tekrar dener misin?");
+      setOrbState("idle");
+      return;
+    }
+    playYouTube(musicCommand.query);
+    await speak(`Tamam, "${musicCommand.query}" icin YouTube'da muzik caliyorum.`);
     return;
   }
 
