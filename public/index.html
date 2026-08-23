@@ -4,54 +4,87 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Jarvis - Sesli Asistan</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div class="bg-glow" aria-hidden="true"></div>
+
   <div class="app">
-    <header>
-      <h1>Jarvis</h1>
-      <p class="subtitle">Canli sesli, kendini gelistirebilen asistan</p>
-      <span id="status-dot" class="status-dot" title="Baglanti durumu"></span>
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <h1>JARVIS</h1>
+          <p class="subtitle">Canli sesli, kendini gelistirebilen asistan</p>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="engine-toggle" role="radiogroup" aria-label="Ses motoru">
+          <label class="engine-option">
+            <input type="radio" name="voice-engine" value="browser" checked />
+            <span>Tarayici</span>
+          </label>
+          <label class="engine-option">
+            <input type="radio" name="voice-engine" value="openai" />
+            <span>OpenAI</span>
+          </label>
+        </div>
+        <span id="status-dot" class="status-dot" title="Baglanti durumu"></span>
+      </div>
     </header>
 
-    <div class="engine-toggle" role="radiogroup" aria-label="Ses motoru">
-      <label>
-        <input type="radio" name="voice-engine" value="browser" checked />
-        Tarayici (ucretsiz)
-      </label>
-      <label>
-        <input type="radio" name="voice-engine" value="openai" />
-        OpenAI (Whisper + TTS, ucretli)
-      </label>
-    </div>
+    <main class="layout">
+      <section class="stage">
+        <div class="orb-wrap">
+          <div id="orb" class="orb state-idle">
+            <span class="orb-ring ring-1"></span>
+            <span class="orb-ring ring-2"></span>
+            <span class="orb-ring ring-3"></span>
+            <span class="orb-core"></span>
+          </div>
+        </div>
 
-    <main>
-      <section id="conversation" class="conversation" aria-live="polite"></section>
+        <div class="stage-controls">
+          <button id="mic-button" class="mic-button" type="button">
+            <span id="mic-icon" class="mic-icon">🎤</span>
+            <span id="mic-label">Konusmak icin bas</span>
+          </button>
+          <button
+            id="improve-button"
+            class="ghost-button"
+            type="button"
+            title="Son konusmadan kendini gelistirmesini iste"
+          >
+            Kendini gelistir
+          </button>
+        </div>
 
-      <section class="controls">
-        <button id="mic-button" class="mic-button" type="button">
-          <span id="mic-icon">🎤</span>
-          <span id="mic-label">Konusmak icin bas</span>
-        </button>
-        <button id="improve-button" class="ghost-button" type="button" title="Son konusmadan kendini gelistirmesini iste">
-          Kendini gelistir
-        </button>
+        <section id="conversation" class="conversation" aria-live="polite"></section>
       </section>
+
+      <aside class="side-panels">
+        <div class="panel">
+          <h2>Ogrenilenler</h2>
+          <div id="learned-content" class="panel-content">Henuz bir sey ogrenilmedi.</div>
+        </div>
+
+        <div class="panel">
+          <h2>Bekleyen Kod Yamalari</h2>
+          <p class="panel-hint">
+            Asistan kod duzeltmelerini burada taslak olarak hazirlar. Gercek dosyaya
+            yazilmasi icin onayin gerekir.
+          </p>
+          <div id="patches-content" class="panel-content patches-content">Yukleniyor...</div>
+        </div>
+      </aside>
     </main>
-
-    <aside id="learned-panel" class="learned-panel">
-      <h2>Ogrenilenler</h2>
-      <div id="learned-content" class="learned-content">Henuz bir sey ogrenilmedi.</div>
-    </aside>
-
-    <aside id="patches-panel" class="learned-panel">
-      <h2>Bekleyen Kod Yamalari</h2>
-      <p class="panel-hint">
-        Asistan kod duzeltmelerini burada taslak olarak hazirlar. Gercek dosyaya yazilmasi
-        icin onayin gerekir.
-      </p>
-      <div id="patches-content" class="patches-content">Yukleniyor...</div>
-    </aside>
   </div>
 
   <audio id="tts-audio" hidden></audio>

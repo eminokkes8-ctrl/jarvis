@@ -6,6 +6,13 @@ const statusDot = document.getElementById("status-dot");
 const learnedContent = document.getElementById("learned-content");
 const patchesContent = document.getElementById("patches-content");
 const ttsAudio = document.getElementById("tts-audio");
+const orb = document.getElementById("orb");
+
+function setOrbState(state) {
+  if (!orb) return;
+  orb.classList.remove("state-idle", "state-listening", "state-thinking", "state-speaking");
+  orb.classList.add(`state-${state}`);
+}
 
 // Bu ifadeler soylenince asistan otomatik olarak kendini gelistirme analizini baslatir.
 // Kasitli olarak dar tutuldu: normal sohbeti yanlislikla tetiklememeli.
@@ -210,6 +217,7 @@ async function startRecording() {
   isRecording = true;
   micButton.classList.add("recording");
   micLabel.textContent = "Dinliyorum... (durdurmak icin bas)";
+  setOrbState("listening");
 }
 
 function stopRecording() {
@@ -225,8 +233,10 @@ function stopRecording() {
 async function processUserText(userText) {
   if (!userText) {
     addBubble("system", "Bir sey duyamadim, tekrar dener misin?");
+    setOrbState("idle");
     return;
   }
+  setOrbState("thinking");
   addBubble("user", userText);
 
   if (isSelfImproveCommand(userText)) {
@@ -258,9 +268,11 @@ async function handleRecordedAudio() {
     const blob = new Blob(recordedChunks, { type: "audio/webm" });
     if (blob.size < 200) {
       addBubble("system", "Ses algilanmadi, tekrar dener misin?");
+      setOrbState("idle");
       return;
     }
 
+    setOrbState("thinking");
     const form = new FormData();
     form.append("audio", blob, "input.webm");
     const transcribeRes = await fetch("/api/transcribe", { method: "POST", body: form });
@@ -271,6 +283,7 @@ async function handleRecordedAudio() {
   } catch (err) {
     console.error(err);
     addBubble("system", `Hata: ${err.message}`);
+    setOrbState("idle");
   } finally {
     micLabel.textContent = "Konusmak icin bas";
     setBusy(false);
@@ -281,6 +294,7 @@ function startBrowserListening() {
   isRecording = true;
   micButton.classList.add("recording");
   micLabel.textContent = "Dinliyorum...";
+  setOrbState("listening");
   try {
     recognition.start();
   } catch (err) {
@@ -303,6 +317,7 @@ if (recognition) {
     } catch (err) {
       console.error(err);
       addBubble("system", `Hata: ${err.message}`);
+      setOrbState("idle");
     } finally {
       setBusy(false);
     }
@@ -319,6 +334,7 @@ async function speak(text) {
   if (voiceEngine === "browser") {
     if (!window.speechSynthesis) {
       addBubble("system", "Tarayicin sesli okumayi (speechSynthesis) desteklemiyor.");
+      setOrbState("idle");
       return;
     }
     window.speechSynthesis.cancel();
@@ -326,9 +342,12 @@ async function speak(text) {
     utterance.lang = "tr-TR";
     const trVoice = cachedVoices.find((v) => v.lang?.toLowerCase().startsWith("tr"));
     if (trVoice) utterance.voice = trVoice;
+    utterance.onstart = () => setOrbState("speaking");
+    utterance.onend = () => setOrbState("idle");
     utterance.onerror = (event) => {
       console.error("[speak:browser]", event.error);
       addBubble("system", `Sesli okuma hatasi: ${event.error}`);
+      setOrbState("idle");
     };
     window.speechSynthesis.speak(utterance);
     return;
@@ -348,14 +367,18 @@ async function speak(text) {
         // yaniti json olarak okunamadi, varsayilan mesaji kullan
       }
       addBubble("system", `Sesli yanit uretilemedi: ${message}`);
+      setOrbState("idle");
       return;
     }
     const audioBlob = await res.blob();
     ttsAudio.src = URL.createObjectURL(audioBlob);
+    ttsAudio.onended = () => setOrbState("idle");
+    setOrbState("speaking");
     await ttsAudio.play();
   } catch (err) {
     console.error("[speak]", err);
     addBubble("system", `Sesli yanit uretilemedi: ${err.message}`);
+    setOrbState("idle");
   }
 }
 
