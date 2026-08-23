@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 import { createPatch } from "diff";
-import { callClaude } from "../lib/anthropic.js";
+import { callClaude, BACKGROUND_MODEL } from "../lib/anthropic.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, "../..");
@@ -92,6 +92,7 @@ SADECE gecerli JSON dondur: {"targetFile": "yol/dosya.js"} ya da hicbir dosya uy
 {"targetFile": null}.`,
     messages: [{ role: "user", content: `Oneri: ${proposalText}\n\nDosyalar:\n${files.join("\n")}` }],
     maxTokens: 200,
+    model: BACKGROUND_MODEL,
   });
 
   const pickMatch = pickRaw.match(/\{[\s\S]*\}/);
@@ -119,6 +120,7 @@ Guvenli bir degisiklik yapamiyorsan: {"newContent": null, "explanation": "neden 
       },
     ],
     maxTokens: 4000,
+    model: BACKGROUND_MODEL,
   });
 
   const patchMatch = patchRaw.match(/\{[\s\S]*\}/);

@@ -9,8 +9,11 @@ import { learnFromTurn } from "../memory/extract.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PERSONA_PATH = path.resolve(__dirname, "../../data/persona.md");
 
-const WEB_SEARCH_ENABLED = process.env.ENABLE_WEB_SEARCH !== "false";
+// Web aramasi ekstra maliyet getirdigi (hem token hem arama basina ucret) icin varsayilan KAPALI.
+const WEB_SEARCH_ENABLED = process.env.ENABLE_WEB_SEARCH === "true";
 const WEB_SEARCH_MAX_USES = Number(process.env.WEB_SEARCH_MAX_USES) || 3;
+// Sesli cevaplar kisa olmali; bu ayni zamanda token (ve dolayisiyla maliyet) sinirini korur.
+const CHAT_MAX_TOKENS = Number(process.env.CHAT_MAX_TOKENS) || 400;
 
 const BASE_SYSTEM_PROMPT = `Sen "Jarvis" adinda, sesli konusan bir yapay zeka asistanisin.
 Cevaplarin sesli olarak okunacak: kisa, dogal, konusma diline uygun cumleler kur.
@@ -61,6 +64,7 @@ chatRouter.post("/api/chat", async (req, res) => {
     const reply = await callClaude({
       system,
       messages,
+      maxTokens: CHAT_MAX_TOKENS,
       tools: WEB_SEARCH_ENABLED ? [webSearchTool({ maxUses: WEB_SEARCH_MAX_USES })] : undefined,
     });
 

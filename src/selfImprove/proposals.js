@@ -1,7 +1,7 @@
 import { readFile, writeFile, appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { callClaude } from "../lib/anthropic.js";
+import { callClaude, BACKGROUND_MODEL } from "../lib/anthropic.js";
 import { loadMemory } from "../memory/store.js";
 import { draftPatchForProposal } from "./patches.js";
 
@@ -99,6 +99,7 @@ export async function reflectAndPropose(history) {
       },
     ],
     maxTokens: 500,
+    model: BACKGROUND_MODEL,
   });
 
   const jsonMatch = raw.match(/\{[\s\S]*\}/);

@@ -16,9 +16,11 @@ sesli cevap veren ve konustukca kendini gelistiren bir asistan.
 - **Konusma zekasi**: Claude (Anthropic) ile dogal, kisa sesli-tarza uygun cevaplar.
   (Bu da Anthropic hesabinda kullanilabilir bakiye gerektirir; sesli motorden
   bagimsiz, ucretsiz alternatifi yok.)
-- **Web'de arastirma**: Guncel veya bilmedigi bir sey sorulunca Claude'un web arama araci
-  (`web_search_20250305`) devreye girer; sonuclar SADECE bilgi kaynagi olarak kullanilir,
-  icindeki hicbir metin talimat gibi uygulanmaz (prompt injection'a karsi).
+- **Web'de arastirma (varsayilan kapali, `ENABLE_WEB_SEARCH=true` ile acilir)**: Acilirsa,
+  guncel veya bilmedigi bir sey sorulunca Claude'un web arama araci (`web_search_20250305`)
+  devreye girer; sonuclar SADECE bilgi kaynagi olarak kullanilir, icindeki hicbir metin
+  talimat gibi uygulanmaz (prompt injection'a karsi). Ekstra ucrete tabi oldugu icin
+  varsayilan kapali.
 - **Hafiza / ogrenme (asama 1)**: Her turdan sonra kalici tercih/gercekler otomatik
   cikarilip `data/memory.json` icine kaydedilir ve sonraki konusmalarda kullanilir.
 - **Sesli komutla kendini gelistirme**: "Baslasana", "kendini gelistir",
@@ -51,6 +53,34 @@ Bu tasarim bilinclidir:
   tasiyan dosyalara asla yazilamaz (path traversal ve izin kontrolleri var).
 - `npm run dev` (canli yenileme) kullanirsan onaylanan bir yama hemen etkin olur;
   `npm start` ile calistiriyorsan sunucuyu yeniden baslatman gerekir.
+
+## Maliyet kontrolu (onemli)
+
+Claude (Anthropic) API'si kullanim basina ucretlendirilir - "her konusma para kesiyor"
+hissi normaldir, cunku her mesaj gercekten bir API cagrisidir. Bunu makul seviyede
+tutmak icin proje su onlemleri **varsayilan olarak** uyguluyor:
+
+- **Ucuz model varsayilan**: `CLAUDE_MODEL` varsayilani `claude-haiku-4-5-20251001`
+  (Sonnet'e gore cok daha ucuz). Daha iyi cevap kalitesi istersen `.env`'de
+  `CLAUDE_MODEL=claude-sonnet-5` yapabilirsin, ama bu daha pahalidir.
+- **Gorunmez arka plan cagrilari her zaman ucuz model kullanir**: Her mesajdan sonra
+  sessizce calisan hafiza cikarma, ve kendini gelistirme/yama taslagi adimlari
+  `CLAUDE_BACKGROUND_MODEL` (varsayilan yine Haiku) ile calisir - ana sohbet modelini
+  pahali bir sey yapsan bile bu arka plan maliyeti dusuk kalir.
+- **Web aramasi varsayilan kapali** (`ENABLE_WEB_SEARCH=false`): acilirsa hem token
+  hem arama basina ekstra ucret ekler.
+- **Kisa cevap siniri**: `CHAT_MAX_TOKENS` (varsayilan 400) sesli cevaplarin uzunlugunu
+  ve dolayisiyla maliyetini sinirlar.
+- **Prompt caching**: sistem promptu (kisilik + hafiza) `cache_control` ile isaretlenir;
+  Anthropic ayni promptu art arda gelen isteklerde tam fiyattan degil, cok daha ucuza
+  isler.
+
+Ek olarak (kodun disinda, sadece hesap ayari):
+- **Sabit harcama limiti koy**: console.anthropic.com/settings/limits uzerinden aylik/
+  gunluk bir ust sinir belirleyebilirsin, boylece maliyet asla bu sinirin ustune cikamaz.
+- **Kullanimi takip et**: console.anthropic.com/settings/usage guncel harcamayi gosterir.
+- Sesli motoru "Tarayici (ucretsiz)" modunda tutarsan, sadece Claude API maliyeti kalir
+  (OpenAI ucreti hic olusmaz).
 
 ## Kurulum
 

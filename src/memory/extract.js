@@ -1,4 +1,4 @@
-import { callClaude } from "../lib/anthropic.js";
+import { callClaude, BACKGROUND_MODEL } from "../lib/anthropic.js";
 import { mergeMemory } from "./store.js";
 
 const EXTRACT_SYSTEM_PROMPT = `Sen bir sesli asistanin hafiza modulusun. Sana bir kullanici mesaji ve asistan cevabi verilecek.
@@ -27,6 +27,7 @@ export async function learnFromTurn(userText, assistantText) {
         },
       ],
       maxTokens: 300,
+      model: BACKGROUND_MODEL,
     });
 
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
