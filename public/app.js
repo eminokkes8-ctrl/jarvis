@@ -128,18 +128,40 @@ async function openMusicOnSystem(query) {
   }
 }
 
-// "Sesi %70 yap", "sesi yuzde 50 ayarla" gibi komutlari algilar. Sadece Windows'ta
-// (sunucunun calistigi bilgisayarda) calisir.
+// "Sesi %70 yap" (kesin deger), "sesi %10 dusur"/"sesi %30 yukselt" (mevcut seviyeye
+// gore fark) ve "sesi kis"/"sesi ac" (sayi verilmezse sabit adimla degistir) gibi
+// komutlari algilar. Sadece Windows'ta (sunucunun calistigi bilgisayarda) calisir.
+const VOLUME_DEFAULT_STEP = 15;
+const VOLUME_SET_WORDS = ["yap", "ayarla", "getir", "olsun"];
+const VOLUME_DECREASE_WORDS = ["kıs", "kis", "azalt", "düşür", "dusur"];
+const VOLUME_INCREASE_WORDS = ["yükselt", "yukselt", "arttır", "arttir", "artır", "artir", "aç", "ac"];
+const VOLUME_MUTE_WORDS = ["kapat", "sustur"];
+
+function containsWholeWord(norm, words) {
+  return words.some((w) => new RegExp(`\\b${escapeRegExp(w)}\\b`, "i").test(norm));
+}
+
 function parseVolumeCommand(text) {
   const norm = normalizeCommand(text);
   if (!/(ses|volume)/i.test(norm)) return null;
-  if (!/(yap|ayarla|getir|olsun)\b/i.test(norm)) return null;
 
   const match = norm.match(/(\d{1,3})/);
-  if (!match) return null;
+  const amount = match ? Math.max(0, Math.min(100, parseInt(match[1], 10))) : null;
 
-  const percent = Math.max(0, Math.min(100, parseInt(match[1], 10)));
-  return { percent };
+  if (containsWholeWord(norm, VOLUME_MUTE_WORDS)) {
+    return { type: "set", percent: 0 };
+  }
+  if (containsWholeWord(norm, VOLUME_DECREASE_WORDS)) {
+    return { type: "delta", delta: -(amount ?? VOLUME_DEFAULT_STEP) };
+  }
+  if (containsWholeWord(norm, VOLUME_INCREASE_WORDS)) {
+    return { type: "delta", delta: amount ?? VOLUME_DEFAULT_STEP };
+  }
+  if (amount !== null && containsWholeWord(norm, VOLUME_SET_WORDS)) {
+    return { type: "set", percent: amount };
+  }
+
+  return null;
 }
 
 // --- Ucretsiz/kaba ses profili dogrulamasi (konusmaci filtreleme) ---
@@ -570,10 +592,12 @@ async function processUserText(userText) {
   const volumeCommand = parseVolumeCommand(userText);
   if (volumeCommand) {
     try {
+      const body =
+        volumeCommand.type === "delta" ? { delta: volumeCommand.delta } : { percent: volumeCommand.percent };
       const res = await fetch("/api/system/volume", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ percent: volumeCommand.percent }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ses ayarlanamadi");

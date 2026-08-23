@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { openUrlInChrome, setSystemVolumePercent } from "../lib/systemControl.js";
+import { openUrlInChrome, getSystemVolumePercent, setSystemVolumePercent } from "../lib/systemControl.js";
 
 export const systemRouter = Router();
 
@@ -24,13 +24,21 @@ systemRouter.post("/api/system/open-youtube", async (req, res) => {
 });
 
 // Sunucunun CALISTIGI bilgisayarin sistem ses seviyesini degistirir (sadece Windows).
+// Ya kesin bir hedef ("percent": 0-100) ya da mevcut seviyeye gore bir fark
+// ("delta": ornegin -10 ya da +30) kabul eder.
 systemRouter.post("/api/system/volume", async (req, res) => {
   try {
-    const { percent } = req.body || {};
-    if (typeof percent !== "number" || Number.isNaN(percent)) {
-      return res.status(400).json({ error: "percent alani (0-100 arasi sayi) zorunlu" });
+    const { percent, delta } = req.body || {};
+    let target;
+    if (typeof percent === "number" && !Number.isNaN(percent)) {
+      target = percent;
+    } else if (typeof delta === "number" && !Number.isNaN(delta)) {
+      const current = await getSystemVolumePercent();
+      target = current + delta;
+    } else {
+      return res.status(400).json({ error: "percent ya da delta alani (sayi) zorunlu" });
     }
-    const applied = await setSystemVolumePercent(percent);
+    const applied = await setSystemVolumePercent(target);
     res.json({ ok: true, percent: applied });
   } catch (err) {
     console.error("[system:volume]", err);

@@ -41,9 +41,12 @@ calisacak sekilde ayarlanmistir (Google Gemini + tarayici sesi).
   acmayi dener; basarisiz olursa (Chrome bulunamadi, farkli isletim sistemi vb.) sayfa
   icinde gomulu bir YouTube oynaticiya geri duser. Detaylar icin asagidaki
   "Bilgisayar kontrolu" bolumune bak.
-- **Sesli komutla sistem sesi ayarlama**: "Sesi %70 yap", "ses seviyesini 30 yap" gibi
-  bir sey soyleyince, sunucunun calistigi bilgisayarin (sadece Windows) sistem ses
-  seviyesini o yuzdeye ayarlar.
+- **Sesli komutla sistem sesi ayarlama**: sunucunun calistigi bilgisayarin (sadece
+  Windows) sistem ses seviyesini degistirir:
+  - Kesin deger: "sesi %70 yap", "ses seviyesini 30 yap"
+  - Mevcut seviyeye gore fark: "sesi %10 dusur", "sesi %30 yukselt"
+  - Sayi verilmezse sabit bir adimla (15 puan): "sesi kis", "sesi ac", "sesi yukselt"
+  - Sessize alma: "sesi kapat", "sesi sustur"
 - **Ucretsiz/kaba ses profili dogrulamasi (konusmaci filtreleme)**: Yan paneldeki
   "Sesimi Kaydet" ile 4 saniyelik bir ses ornegi kaydedip tarayicida (localStorage)
   saklarsin. Kayittan sonra, her komut oncesi o anki konusmacinin ses ozellikleri

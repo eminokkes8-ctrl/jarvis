@@ -41,7 +41,10 @@ export async function openUrlInChrome(url) {
   }
 }
 
-const SET_VOLUME_POWERSHELL_TEMPLATE = `
+// Windows Core Audio API'sini (IAudioEndpointVolume) PowerShell'in Add-Type ile
+// derledigi kucuk bir C# siniftan kullanan ortak tanim. nircmd gibi ekstra bir
+// program kurulmasina gerek yoktur.
+const AUDIO_TYPE_DEFINITION = `
 Add-Type -TypeDefinition @'
 using System.Runtime.InteropServices;
 [Guid("5CDF2C82-841E-4546-9722-0CF74078229A"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -72,34 +75,57 @@ public class JarvisAudio {
   public static void SetVolume(float level) {
     Marshal.ThrowExceptionForHR(Vol().SetMasterVolumeLevelScalar(level, System.Guid.Empty));
   }
+  public static float GetVolume() {
+    float v = 0;
+    Marshal.ThrowExceptionForHR(Vol().GetMasterVolumeLevelScalar(out v));
+    return v;
+  }
 }
 '@ -Language CSharp
-[JarvisAudio]::SetVolume(__LEVEL__)
 `;
 
+async function runAudioPowerShell(trailingCommand) {
+  const script = `${AUDIO_TYPE_DEFINITION}\n${trailingCommand}`;
+  // Karmasik/coklu satirli scripti kabuk tirnaklama sorunlari olmadan gecirmek icin
+  // PowerShell'in -EncodedCommand (UTF-16LE + base64) mekanizmasi kullanilir.
+  const encoded = Buffer.from(script, "utf16le").toString("base64");
+  return run(`powershell -NoProfile -NonInteractive -EncodedCommand ${encoded}`);
+}
+
+function assertWindows() {
+  if (os.platform() !== "win32") {
+    throw new Error("Sistem sesi kontrolu su an sadece Windows'ta destekleniyor");
+  }
+}
+
 /**
- * Windows'ta sistemin ana ses seviyesini yuzde (0-100) olarak ayarlar. Windows'un
- * yerlesik Core Audio API'sini PowerShell uzerinden kullanir - nircmd gibi ekstra
- * bir program kurulmasina gerek yoktur. Sadece Windows'ta desteklenir.
+ * Windows'ta sistemin su anki ana ses seviyesini yuzde (0-100) olarak okur.
+ * @returns {Promise<number>}
+ */
+export async function getSystemVolumePercent() {
+  assertWindows();
+  const stdout = await runAudioPowerShell("[JarvisAudio]::GetVolume()");
+  const scalar = parseFloat(stdout.trim());
+  if (Number.isNaN(scalar)) {
+    throw new Error("Ses seviyesi okunamadi");
+  }
+  return Math.round(scalar * 100);
+}
+
+/**
+ * Windows'ta sistemin ana ses seviyesini yuzde (0-100) olarak ayarlar.
  * @param {number} percent 0-100 arasi hedef ses seviyesi
  * @returns {Promise<number>} uygulanan (0-100 araliginda sinirlandirilmis) yuzde
  */
 export async function setSystemVolumePercent(percent) {
-  if (os.platform() !== "win32") {
-    throw new Error("Sistem sesi kontrolu su an sadece Windows'ta destekleniyor");
-  }
+  assertWindows();
   if (typeof percent !== "number" || Number.isNaN(percent)) {
     throw new Error("Gecerli bir yuzde degeri verilmedi");
   }
 
   const clamped = Math.max(0, Math.min(100, Math.round(percent)));
   const scalar = (clamped / 100).toFixed(2);
-  const script = SET_VOLUME_POWERSHELL_TEMPLATE.replace("__LEVEL__", scalar);
-
-  // Karmasik/coklu satirli scripti kabuk tirnaklama sorunlari olmadan gecirmek icin
-  // PowerShell'in -EncodedCommand (UTF-16LE + base64) mekanizmasi kullanilir.
-  const encoded = Buffer.from(script, "utf16le").toString("base64");
-  await run(`powershell -NoProfile -NonInteractive -EncodedCommand ${encoded}`);
+  await runAudioPowerShell(`[JarvisAudio]::SetVolume(${scalar})`);
 
   return clamped;
 }
