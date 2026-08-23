@@ -5,7 +5,9 @@ import { callLLM } from "../lib/llm.js";
 import { loadMemory } from "../memory/store.js";
 import { draftPatchForProposal } from "./patches.js";
 
-const MAX_AUTO_PATCH_DRAFTS = 2;
+// Ucretsiz LLM katmanlarinin (ornegin Gemini) dakika basina istek siniri oldugu icin,
+// bir "kendini gelistir" turunda en fazla bu kadar yama taslagi otomatik hazirlanir.
+const MAX_AUTO_PATCH_DRAFTS = 1;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, "../../data");

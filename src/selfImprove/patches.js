@@ -78,6 +78,10 @@ async function listEditableFiles() {
  * Bir gelistirme/duzeltme onerisi icin otomatik kod yamasi TASLAGI hazirlar.
  * Yama dogrudan uygulanmaz; data/patches.json icine "pending" olarak kaydedilir.
  * Gercek dosyaya yazma islemi SADECE applyPatch() ile, insan onayiyla yapilir.
+ *
+ * Hedef dosyayi secme ve yamayi yazma TEK bir cagrida yapilir (iki ayri cagri yerine) -
+ * bu, ucretsiz LLM katmanlarinin (ornegin Gemini) dakika basina istek sinirina takilma
+ * riskini azaltir.
  * @param {string} proposalText
  * @returns {Promise<object|null>} olusturulan yama kaydi, ya da guvenli bir yama cikarilamadiysa null
  */
@@ -85,49 +89,38 @@ export async function draftPatchForProposal(proposalText) {
   const files = await listEditableFiles();
   if (files.length === 0) return null;
 
-  const pickRaw = await callLLM({
+  const fileContents = await Promise.all(
+    files.map(async (rel) => ({ rel, content: await readFile(path.join(PROJECT_ROOT, rel), "utf8") }))
+  );
+  const filesBlock = fileContents
+    .map(({ rel, content }) => `### ${rel}\n\`\`\`\n${content}\n\`\`\``)
+    .join("\n\n");
+
+  const raw = await callLLM({
     system: `Sen bir kod duzenleme asistanisin. Sana bir gelistirme/duzeltme onerisi ve
-duzenlenebilir dosyalarin listesi verilecek. Bu oneriyi uygulamak icin en uygun TEK dosyayi sec.
-SADECE gecerli JSON dondur: {"targetFile": "yol/dosya.js"} ya da hicbir dosya uygun degilse
-{"targetFile": null}.`,
-    messages: [{ role: "user", content: `Oneri: ${proposalText}\n\nDosyalar:\n${files.join("\n")}` }],
-    maxTokens: 200,
-    background: true,
-  });
-
-  const pickMatch = pickRaw.match(/\{[\s\S]*\}/);
-  if (!pickMatch) return null;
-  const picked = JSON.parse(pickMatch[0]);
-  if (!picked.targetFile) return null;
-
-  const allowed = resolveAllowedPath(picked.targetFile);
-  if (!allowed || !files.includes(allowed.normalized)) return null;
-
-  const currentContent = await readFile(allowed.resolved, "utf8");
-
-  const patchRaw = await callLLM({
-    system: `Sen bir kod duzenleme asistanisin. Sana bir dosyanin GUNCEL icerigi ve bir
-gelistirme/duzeltme onerisi verilecek. SADECE bu oneriyi uygulamak icin gerekli minimal
-degisikligi yap; dosyanin geri kalanini oldugu gibi koru. Calismayi bozacak (kirici) veya
+duzenlenebilir TUM dosyalarin GUNCEL icerigi verilecek. Bu oneriyi uygulamak icin EN UYGUN
+TEK dosyayi sec ve o dosyanin TAM yeni icerigini yaz. SADECE bu oneriyi uygulamak icin gerekli
+minimal degisikligi yap; dosyanin geri kalanini oldugu gibi koru. Calismayi bozacak (kirici) veya
 riskli (ornegin disariya veri gonderen, guvenlik kontrolu kaldiran) bir degisiklik YAPMA.
-Emin degilsen degisiklik yapma.
-SADECE gecerli JSON dondur: {"newContent": "dosyanin TAM yeni icerigi", "explanation": "kisa aciklama"}
-Guvenli bir degisiklik yapamiyorsan: {"newContent": null, "explanation": "neden yapamadigin"}`,
-    messages: [
-      {
-        role: "user",
-        content: `Oneri: ${proposalText}\n\nDosya (${allowed.normalized}):\n\`\`\`\n${currentContent}\n\`\`\``,
-      },
-    ],
+Emin degilsen ya da hicbir dosya uygun degilse degisiklik yapma.
+SADECE gecerli JSON dondur:
+{"targetFile": "yol/dosya.js", "newContent": "dosyanin TAM yeni icerigi", "explanation": "kisa aciklama"}
+Guvenli/emin bir degisiklik yapamiyorsan: {"targetFile": null}`,
+    messages: [{ role: "user", content: `Oneri: ${proposalText}\n\nDosyalar:\n${filesBlock}` }],
     maxTokens: 4000,
     background: true,
   });
 
-  const patchMatch = patchRaw.match(/\{[\s\S]*\}/);
-  if (!patchMatch) return null;
-  const parsed = JSON.parse(patchMatch[0]);
-  if (!parsed.newContent || typeof parsed.newContent !== "string") return null;
-  if (parsed.newContent === currentContent) return null;
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  const parsed = JSON.parse(match[0]);
+  if (!parsed.targetFile || !parsed.newContent || typeof parsed.newContent !== "string") return null;
+
+  const allowed = resolveAllowedPath(parsed.targetFile);
+  if (!allowed || !files.includes(allowed.normalized)) return null;
+
+  const currentContent = fileContents.find((f) => f.rel === allowed.normalized)?.content;
+  if (currentContent === undefined || parsed.newContent === currentContent) return null;
 
   const diffText = createPatch(allowed.normalized, currentContent, parsed.newContent);
 
