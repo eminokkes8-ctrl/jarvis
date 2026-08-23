@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 import { createPatch } from "diff";
-import { callClaude, BACKGROUND_MODEL } from "../lib/anthropic.js";
+import { callLLM } from "../lib/llm.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, "../..");
@@ -85,14 +85,14 @@ export async function draftPatchForProposal(proposalText) {
   const files = await listEditableFiles();
   if (files.length === 0) return null;
 
-  const pickRaw = await callClaude({
+  const pickRaw = await callLLM({
     system: `Sen bir kod duzenleme asistanisin. Sana bir gelistirme/duzeltme onerisi ve
 duzenlenebilir dosyalarin listesi verilecek. Bu oneriyi uygulamak icin en uygun TEK dosyayi sec.
 SADECE gecerli JSON dondur: {"targetFile": "yol/dosya.js"} ya da hicbir dosya uygun degilse
 {"targetFile": null}.`,
     messages: [{ role: "user", content: `Oneri: ${proposalText}\n\nDosyalar:\n${files.join("\n")}` }],
     maxTokens: 200,
-    model: BACKGROUND_MODEL,
+    background: true,
   });
 
   const pickMatch = pickRaw.match(/\{[\s\S]*\}/);
@@ -105,7 +105,7 @@ SADECE gecerli JSON dondur: {"targetFile": "yol/dosya.js"} ya da hicbir dosya uy
 
   const currentContent = await readFile(allowed.resolved, "utf8");
 
-  const patchRaw = await callClaude({
+  const patchRaw = await callLLM({
     system: `Sen bir kod duzenleme asistanisin. Sana bir dosyanin GUNCEL icerigi ve bir
 gelistirme/duzeltme onerisi verilecek. SADECE bu oneriyi uygulamak icin gerekli minimal
 degisikligi yap; dosyanin geri kalanini oldugu gibi koru. Calismayi bozacak (kirici) veya
@@ -120,7 +120,7 @@ Guvenli bir degisiklik yapamiyorsan: {"newContent": null, "explanation": "neden 
       },
     ],
     maxTokens: 4000,
-    model: BACKGROUND_MODEL,
+    background: true,
   });
 
   const patchMatch = patchRaw.match(/\{[\s\S]*\}/);

@@ -1,7 +1,7 @@
 import { readFile, writeFile, appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { callClaude, BACKGROUND_MODEL } from "../lib/anthropic.js";
+import { callLLM } from "../lib/llm.js";
 import { loadMemory } from "../memory/store.js";
 import { draftPatchForProposal } from "./patches.js";
 
@@ -90,7 +90,7 @@ export async function reflectAndPropose(history) {
     .map((m) => `${m.role === "user" ? "Kullanici" : "Asistan"}: ${m.content}`)
     .join("\n");
 
-  const raw = await callClaude({
+  const raw = await callLLM({
     system: REFLECT_SYSTEM_PROMPT,
     messages: [
       {
@@ -99,7 +99,7 @@ export async function reflectAndPropose(history) {
       },
     ],
     maxTokens: 500,
-    model: BACKGROUND_MODEL,
+    background: true,
   });
 
   const jsonMatch = raw.match(/\{[\s\S]*\}/);

@@ -1,4 +1,4 @@
-import { callClaude, BACKGROUND_MODEL } from "../lib/anthropic.js";
+import { callLLM } from "../lib/llm.js";
 import { mergeMemory } from "./store.js";
 
 const EXTRACT_SYSTEM_PROMPT = `Sen bir sesli asistanin hafiza modulusun. Sana bir kullanici mesaji ve asistan cevabi verilecek.
@@ -18,7 +18,7 @@ Yeni bir sey yoksa ikisini de bos dizi olarak dondur.`;
  */
 export async function learnFromTurn(userText, assistantText) {
   try {
-    const raw = await callClaude({
+    const raw = await callLLM({
       system: EXTRACT_SYSTEM_PROMPT,
       messages: [
         {
@@ -27,7 +27,7 @@ export async function learnFromTurn(userText, assistantText) {
         },
       ],
       maxTokens: 300,
-      model: BACKGROUND_MODEL,
+      background: true,
     });
 
     const jsonMatch = raw.match(/\{[\s\S]*\}/);

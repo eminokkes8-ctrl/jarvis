@@ -1,7 +1,8 @@
 # Jarvis - Kendini Gelistirebilen Sesli Asistan
 
-Tarayicidan mikrofonla konusabildigin, Claude ile dusunen, gerektiginde web'de arastiran,
-sesli cevap veren ve konustukca kendini gelistiren bir asistan.
+Tarayicidan mikrofonla konusabildigin, bir LLM ile dusunen, sesli cevap veren ve
+konustukca kendini gelistiren bir asistan. Varsayilan kurulum **tamamen ucretsiz**
+calisacak sekilde ayarlanmistir (Google Gemini + tarayici sesi).
 
 ## Ozellikler
 
@@ -13,14 +14,15 @@ sesli cevap veren ve konustukca kendini gelistiren bir asistan.
     `OPENAI_API_KEY` ve OpenAI hesabinda kullanilabilir bakiye gerektirir.
   - Arayuzdeki ust kisimdaki secim kutularindan istedigin an gecis yapabilirsin;
     tercihin tarayicida hatirlanir.
-- **Konusma zekasi**: Claude (Anthropic) ile dogal, kisa sesli-tarza uygun cevaplar.
-  (Bu da Anthropic hesabinda kullanilabilir bakiye gerektirir; sesli motorden
-  bagimsiz, ucretsiz alternatifi yok.)
-- **Web'de arastirma (varsayilan kapali, `ENABLE_WEB_SEARCH=true` ile acilir)**: Acilirsa,
-  guncel veya bilmedigi bir sey sorulunca Claude'un web arama araci (`web_search_20250305`)
-  devreye girer; sonuclar SADECE bilgi kaynagi olarak kullanilir, icindeki hicbir metin
-  talimat gibi uygulanmaz (prompt injection'a karsi). Ekstra ucrete tabi oldugu icin
-  varsayilan kapali.
+- **Konusma zekasi - iki saglayici secenegi**:
+  - **Google Gemini (ucretsiz, varsayilan)**: Google AI Studio'nun ucretsiz katmani,
+    kredi karti gerekmez. `LLM_PROVIDER=gemini` (varsayilan).
+  - **Anthropic Claude (ucretli)**: Daha guclu bir model istersen `.env`'de
+    `LLM_PROVIDER=anthropic` yapabilirsin; bu durumda `ANTHROPIC_API_KEY` gerekir.
+- **Web'de arastirma (sadece Claude ile, varsayilan kapali)**: `LLM_PROVIDER=anthropic`
+  ve `ENABLE_WEB_SEARCH=true` ise, guncel bir sey sorulunca Claude'un web arama araci
+  (`web_search_20250305`) devreye girer; sonuclar SADECE bilgi kaynagi olarak kullanilir,
+  icindeki hicbir metin talimat gibi uygulanmaz (prompt injection'a karsi).
 - **Hafiza / ogrenme (asama 1)**: Her turdan sonra kalici tercih/gercekler otomatik
   cikarilip `data/memory.json` icine kaydedilir ve sonraki konusmalarda kullanilir.
 - **Sesli komutla kendini gelistirme**: "Baslasana", "kendini gelistir",
@@ -42,7 +44,7 @@ diff'i gorup "Onayla ve Uygula" ya da "Reddet" ile karar verirsin; sadece bu tik
 gercek dosya guncellenir.
 
 Bu tasarim bilinclidir:
-- Web arastirmasi eklendigi icin, kotu niyetli bir sayfanin icerigi "kodunu soyle
+- Web arastirmasi acilirsa, kotu niyetli bir sayfanin icerigi "kodunu soyle
   degistir" gibi bir talimat tasiyabilir - otomatik uygulama olsaydi bu dogrudan
   kod calistirmaya donusurdu.
 - Modelin urettigi bir yama hatali olursa calisan sunucuyu bozabilir.
@@ -54,68 +56,69 @@ Bu tasarim bilinclidir:
 - `npm run dev` (canli yenileme) kullanirsan onaylanan bir yama hemen etkin olur;
   `npm start` ile calistiriyorsan sunucuyu yeniden baslatman gerekir.
 
-## Maliyet kontrolu (onemli)
+## Maliyet kontrolu
 
-Claude (Anthropic) API'si kullanim basina ucretlendirilir - "her konusma para kesiyor"
-hissi normaldir, cunku her mesaj gercekten bir API cagrisidir. Bunu makul seviyede
-tutmak icin proje su onlemleri **varsayilan olarak** uyguluyor:
+Varsayilan kurulum **Google Gemini'nin ucretsiz katmanini** kullanir - kredi karti
+gerekmez, normal kisisel kullanimda ucret olusmaz (sadece dakika/gun basina istek
+sayisi sinirlidir). Sesli motoru de "Tarayici (ucretsiz)" modunda tutarsan, tum
+sistem tamamen ucretsiz calisir.
 
+`LLM_PROVIDER=anthropic` ile Claude'a gecersen (daha guclu ama ucretli), proje yine
+maliyeti dusuk tutacak onlemler icerir:
 - **Ucuz model varsayilan**: `CLAUDE_MODEL` varsayilani `claude-haiku-4-5-20251001`
-  (Sonnet'e gore cok daha ucuz). Daha iyi cevap kalitesi istersen `.env`'de
-  `CLAUDE_MODEL=claude-sonnet-5` yapabilirsin, ama bu daha pahalidir.
+  (Sonnet'e gore cok daha ucuz). `.env`'de `CLAUDE_MODEL=claude-sonnet-5` ile daha iyi
+  kaliteye gecebilirsin, ama bu daha pahalidir.
 - **Gorunmez arka plan cagrilari her zaman ucuz model kullanir**: Her mesajdan sonra
-  sessizce calisan hafiza cikarma, ve kendini gelistirme/yama taslagi adimlari
-  `CLAUDE_BACKGROUND_MODEL` (varsayilan yine Haiku) ile calisir - ana sohbet modelini
-  pahali bir sey yapsan bile bu arka plan maliyeti dusuk kalir.
+  sessizce calisan hafiza cikarma ve kendini gelistirme/yama taslagi adimlari
+  `CLAUDE_BACKGROUND_MODEL` (varsayilan yine Haiku) ile calisir.
 - **Web aramasi varsayilan kapali** (`ENABLE_WEB_SEARCH=false`): acilirsa hem token
   hem arama basina ekstra ucret ekler.
 - **Kisa cevap siniri**: `CHAT_MAX_TOKENS` (varsayilan 400) sesli cevaplarin uzunlugunu
   ve dolayisiyla maliyetini sinirlar.
-- **Prompt caching**: sistem promptu (kisilik + hafiza) `cache_control` ile isaretlenir;
-  Anthropic ayni promptu art arda gelen isteklerde tam fiyattan degil, cok daha ucuza
-  isler.
-
-Ek olarak (kodun disinda, sadece hesap ayari):
-- **Sabit harcama limiti koy**: console.anthropic.com/settings/limits uzerinden aylik/
-  gunluk bir ust sinir belirleyebilirsin, boylece maliyet asla bu sinirin ustune cikamaz.
-- **Kullanimi takip et**: console.anthropic.com/settings/usage guncel harcamayi gosterir.
-- Sesli motoru "Tarayici (ucretsiz)" modunda tutarsan, sadece Claude API maliyeti kalir
-  (OpenAI ucreti hic olusmaz).
+- **Prompt caching**: sistem promptu `cache_control` ile isaretlenir; Anthropic ayni
+  promptu art arda gelen isteklerde tam fiyattan degil, cok daha ucuza isler.
+- Claude kullanirken **sabit harcama limiti koy**: console.anthropic.com/settings/limits
+  uzerinden aylik/gunluk bir ust sinir belirleyebilirsin.
+- **Kullanimi takip et**: console.anthropic.com/settings/usage (Claude) ya da
+  aistudio.google.com (Gemini) guncel kullanimi gosterir.
 
 ## Kurulum
 
 ```bash
 npm install
 cp .env.example .env
-# .env dosyasina en azindan ANTHROPIC_API_KEY degerini gir
+# .env dosyasina en azindan GEMINI_API_KEY degerini gir (aistudio.google.com/apikey - ucretsiz)
 npm start        # ya da: npm run dev (kod yamasi onayladiktan sonra canli yeniler)
 ```
 
-Sonra tarayicida `http://localhost:3000` adresini ac. Varsayilan "Tarayici (ucretsiz)"
-modunda `OPENAI_API_KEY` girmene gerek yok; sadece "OpenAI" moduna gecersen gerekir.
+Sonra tarayicida `http://localhost:3000` adresini ac. Varsayilan ayarlarla
+(Gemini + Tarayici sesi) hicbir ucret olusmaz; `OPENAI_API_KEY`/`ANTHROPIC_API_KEY`
+girmene sadece o motorlara gecersen gerekir.
 
 ## Gerekli API anahtarlari
 
 | Degisken | Ne icin | Nereden alinir |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Sohbet + web arama (Claude) - her zaman gerekli | console.anthropic.com |
-| `OPENAI_API_KEY` | Sadece "OpenAI" ses modu secilirse: Whisper (STT) + TTS | platform.openai.com |
+| `GEMINI_API_KEY` | Sohbet (varsayilan saglayici) - ucretsiz | aistudio.google.com/apikey |
+| `ANTHROPIC_API_KEY` | Sadece `LLM_PROVIDER=anthropic` ise: sohbet + web arama - ucretli | console.anthropic.com |
+| `OPENAI_API_KEY` | Sadece "OpenAI" ses modu secilirse: Whisper (STT) + TTS - ucretli | platform.openai.com |
 
-`.env` icindeki `CLAUDE_MODEL`, `TTS_VOICE`, `ENABLE_WEB_SEARCH` ve
-`WEB_SEARCH_MAX_USES` degerleri istege bagli olarak degistirilebilir. Web aramasi
-API kullanim basina ucretlendirilir; `WEB_SEARCH_MAX_USES` ile istek basina ust
-sinir konur, `ENABLE_WEB_SEARCH=false` ile tamamen kapatilabilir.
+`.env` icindeki `LLM_PROVIDER`, `GEMINI_MODEL`, `CLAUDE_MODEL`, `CLAUDE_BACKGROUND_MODEL`,
+`CHAT_MAX_TOKENS`, `TTS_VOICE`, `ENABLE_WEB_SEARCH` ve `WEB_SEARCH_MAX_USES` degerleri
+istege bagli olarak degistirilebilir; `.env.example` her birini aciklar.
 
 ## Proje yapisi
 
 ```
 src/
   server.js              Express uygulamasi, route'lari baglar
+  lib/llm.js             Saglayicidan bagimsiz sohbet cagrisi (Gemini <-> Claude secimi)
+  lib/gemini.js          Google Gemini API istemcisi (ucretsiz katman)
   lib/anthropic.js       Claude Messages API istemcisi (+ web_search araci)
   lib/openai.js          Whisper (STT) + TTS API istemcisi
   routes/
     transcribe.js        POST /api/transcribe        - ses -> metin
-    chat.js               POST /api/chat              - metin -> Claude cevabi (web arama dahil)
+    chat.js               POST /api/chat              - metin -> LLM cevabi
     speak.js              POST /api/speak              - metin -> ses
     selfImprove.js        POST /api/self-improve       - kendini gelistirme analizi
     state.js               GET  /api/state              - hafiza + persona notlarini okur

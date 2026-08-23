@@ -2,15 +2,16 @@ import { Router } from "express";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { callClaude, webSearchTool } from "../lib/anthropic.js";
+import { callLLM, webSearchTool, llmSupportsWebSearch } from "../lib/llm.js";
 import { loadMemory, memoryToPromptBlock } from "../memory/store.js";
 import { learnFromTurn } from "../memory/extract.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PERSONA_PATH = path.resolve(__dirname, "../../data/persona.md");
 
-// Web aramasi ekstra maliyet getirdigi (hem token hem arama basina ucret) icin varsayilan KAPALI.
-const WEB_SEARCH_ENABLED = process.env.ENABLE_WEB_SEARCH === "true";
+// Web aramasi ekstra maliyet getirdigi (hem token hem arama basina ucret) icin varsayilan KAPALI,
+// ve su an sadece Claude (anthropic) saglayicisinda destekleniyor.
+const WEB_SEARCH_ENABLED = process.env.ENABLE_WEB_SEARCH === "true" && llmSupportsWebSearch();
 const WEB_SEARCH_MAX_USES = Number(process.env.WEB_SEARCH_MAX_USES) || 3;
 // Sesli cevaplar kisa olmali; bu ayni zamanda token (ve dolayisiyla maliyet) sinirini korur.
 const CHAT_MAX_TOKENS = Number(process.env.CHAT_MAX_TOKENS) || 400;
@@ -61,7 +62,7 @@ chatRouter.post("/api/chat", async (req, res) => {
     const system = await buildSystemPrompt();
     const messages = [...priorMessages, { role: "user", content: message }];
 
-    const reply = await callClaude({
+    const reply = await callLLM({
       system,
       messages,
       maxTokens: CHAT_MAX_TOKENS,

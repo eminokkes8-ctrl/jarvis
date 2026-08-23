@@ -90,13 +90,15 @@ async function checkHealth() {
     const res = await fetch("/api/health");
     const data = await res.json();
     const needsOpenAI = voiceEngine === "openai";
-    if (data.ok && data.anthropicConfigured && (!needsOpenAI || data.openaiConfigured)) {
+    const llmKeyName = data.llmProvider === "gemini" ? "GEMINI_API_KEY" : "ANTHROPIC_API_KEY";
+    const llmConfigured = data.llmProvider === "gemini" ? data.geminiConfigured : data.anthropicConfigured;
+    if (data.ok && llmConfigured && (!needsOpenAI || data.openaiConfigured)) {
       statusDot.className = "status-dot ok";
       statusDot.title = "Baglanti hazir";
     } else {
       statusDot.className = "status-dot error";
       const missing = [];
-      if (!data.anthropicConfigured) missing.push("ANTHROPIC_API_KEY");
+      if (!llmConfigured) missing.push(llmKeyName);
       if (needsOpenAI && !data.openaiConfigured) missing.push("OPENAI_API_KEY");
       statusDot.title = missing.length ? `Eksik: ${missing.join(", ")}` : "Sunucu hatasi";
     }
