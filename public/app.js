@@ -317,12 +317,19 @@ if (recognition) {
 
 async function speak(text) {
   if (voiceEngine === "browser") {
-    if (!window.speechSynthesis) return;
+    if (!window.speechSynthesis) {
+      addBubble("system", "Tarayicin sesli okumayi (speechSynthesis) desteklemiyor.");
+      return;
+    }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "tr-TR";
     const trVoice = cachedVoices.find((v) => v.lang?.toLowerCase().startsWith("tr"));
     if (trVoice) utterance.voice = trVoice;
+    utterance.onerror = (event) => {
+      console.error("[speak:browser]", event.error);
+      addBubble("system", `Sesli okuma hatasi: ${event.error}`);
+    };
     window.speechSynthesis.speak(utterance);
     return;
   }
@@ -332,12 +339,23 @@ async function speak(text) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text }),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      let message = `HTTP ${res.status}`;
+      try {
+        const data = await res.json();
+        message = data.error || message;
+      } catch {
+        // yaniti json olarak okunamadi, varsayilan mesaji kullan
+      }
+      addBubble("system", `Sesli yanit uretilemedi: ${message}`);
+      return;
+    }
     const audioBlob = await res.blob();
     ttsAudio.src = URL.createObjectURL(audioBlob);
     await ttsAudio.play();
   } catch (err) {
     console.error("[speak]", err);
+    addBubble("system", `Sesli yanit uretilemedi: ${err.message}`);
   }
 }
 
