@@ -1,0 +1,186 @@
+:root {
+  color-scheme: dark;
+  --bg: #0f1115;
+  --panel: #171a21;
+  --accent: #5b8cff;
+  --accent-soft: rgba(91, 140, 255, 0.15);
+  --text: #e6e8ef;
+  --muted: #9198a8;
+  --danger: #ff5b6b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 100vh;
+}
+
+header {
+  position: relative;
+  text-align: center;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 2rem;
+  letter-spacing: 0.05em;
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.status-dot {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.status-dot.ok {
+  background: #4caf50;
+}
+
+.status-dot.error {
+  background: var(--danger);
+}
+
+.conversation {
+  flex: 1;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--panel);
+  border-radius: 16px;
+  overflow-y: auto;
+}
+
+.bubble {
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.bubble.user {
+  align-self: flex-end;
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.bubble.assistant {
+  align-self: flex-start;
+  background: #262b36;
+  border-bottom-left-radius: 4px;
+}
+
+.bubble.system {
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  background: transparent;
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.mic-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 22px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.2s ease;
+}
+
+.mic-button:active {
+  transform: scale(0.97);
+}
+
+.mic-button.recording {
+  background: var(--danger);
+  animation: pulse 1.2s infinite;
+}
+
+.mic-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ghost-button {
+  padding: 12px 18px;
+  border-radius: 999px;
+  border: 1px solid #333a48;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.ghost-button:hover {
+  background: var(--accent-soft);
+}
+
+.learned-panel {
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.learned-panel h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.learned-content {
+  font-size: 0.9rem;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 91, 107, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(255, 91, 107, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 91, 107, 0);
+  }
+}

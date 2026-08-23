@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jarvis - Sesli Asistan</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>Jarvis</h1>
+      <p class="subtitle">Canli sesli, kendini gelistirebilen asistan</p>
+      <span id="status-dot" class="status-dot" title="Baglanti durumu"></span>
+    </header>
+
+    <main>
+      <section id="conversation" class="conversation" aria-live="polite"></section>
+
+      <section class="controls">
+        <button id="mic-button" class="mic-button" type="button">
+          <span id="mic-icon">🎤</span>
+          <span id="mic-label">Konusmak icin bas</span>
+        </button>
+        <button id="improve-button" class="ghost-button" type="button" title="Son konusmadan kendini gelistirmesini iste">
+          Kendini gelistir
+        </button>
+      </section>
+    </main>
+
+    <aside id="learned-panel" class="learned-panel">
+      <h2>Ogrenilenler</h2>
+      <div id="learned-content" class="learned-content">Henuz bir sey ogrenilmedi.</div>
+    </aside>
+  </div>
+
+  <audio id="tts-audio" hidden></audio>
+  <script src="app.js"></script>
+</body>
+</html>
