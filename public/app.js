@@ -66,7 +66,16 @@ function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-const MUSIC_ACTION_RE = new RegExp(`\\b(?:${MUSIC_ACTION_WORDS.map(escapeRegExp).join("|")})\\b`, "i");
+// JS'nin \b (kelime siniri) kontrolu SADECE ASCII harfleri "kelime karakteri" sayar;
+// turkce ozel harfler (ç, ğ, ı, ö, ş, ü) ile baslayan/biten kelimelerde (ornegin "aç",
+// "çal") \b yanlis calisir. Bu yuzden kendi kelime-siniri kontrolumuzu yapiyoruz.
+const TR_WORD_CHARS = "a-z0-9çğıöşü";
+function wordBoundaryAlternationRegex(words) {
+  const alternation = words.map(escapeRegExp).join("|");
+  return new RegExp(`(?<![${TR_WORD_CHARS}])(?:${alternation})(?![${TR_WORD_CHARS}])`, "i");
+}
+
+const MUSIC_ACTION_RE = wordBoundaryAlternationRegex(MUSIC_ACTION_WORDS);
 
 function parseMusicCommand(text) {
   const norm = normalizeCommand(text);
@@ -138,7 +147,7 @@ const VOLUME_INCREASE_WORDS = ["yükselt", "yukselt", "arttır", "arttir", "art�
 const VOLUME_MUTE_WORDS = ["kapat", "sustur"];
 
 function containsWholeWord(norm, words) {
-  return words.some((w) => new RegExp(`\\b${escapeRegExp(w)}\\b`, "i").test(norm));
+  return wordBoundaryAlternationRegex(words).test(norm);
 }
 
 function parseVolumeCommand(text) {
