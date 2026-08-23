@@ -33,6 +33,29 @@ function isSelfImproveCommand(text) {
   return SELF_IMPROVE_CONTAINS_TRIGGERS.some((t) => norm.includes(t));
 }
 
+// Ses motoru: "browser" (Web Speech API, ucretsiz, API anahtari gerekmez, Chrome/Edge onerilir)
+// ya da "openai" (Whisper + TTS, ucretli, .env icinde OPENAI_API_KEY gerekir).
+const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
+const browserSpeechSupported = Boolean(SpeechRecognitionImpl && window.speechSynthesis);
+let voiceEngine = localStorage.getItem("voiceEngine") || (browserSpeechSupported ? "browser" : "openai");
+
+let recognition = null;
+if (SpeechRecognitionImpl) {
+  recognition = new SpeechRecognitionImpl();
+  recognition.lang = "tr-TR";
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+}
+
+let cachedVoices = [];
+function refreshVoiceCache() {
+  if (window.speechSynthesis) cachedVoices = window.speechSynthesis.getVoices();
+}
+if (window.speechSynthesis) {
+  refreshVoiceCache();
+  window.speechSynthesis.onvoiceschanged = refreshVoiceCache;
+}
+
 /** @type {{role: "user"|"assistant", content: string}[]} */
 let history = [];
 let mediaRecorder = null;
@@ -59,15 +82,16 @@ async function checkHealth() {
   try {
     const res = await fetch("/api/health");
     const data = await res.json();
-    if (data.ok && data.anthropicConfigured && data.openaiConfigured) {
+    const needsOpenAI = voiceEngine === "openai";
+    if (data.ok && data.anthropicConfigured && (!needsOpenAI || data.openaiConfigured)) {
       statusDot.className = "status-dot ok";
       statusDot.title = "Baglanti hazir";
     } else {
       statusDot.className = "status-dot error";
       const missing = [];
       if (!data.anthropicConfigured) missing.push("ANTHROPIC_API_KEY");
-      if (!data.openaiConfigured) missing.push("OPENAI_API_KEY");
-      statusDot.title = `Eksik: ${missing.join(", ")}`;
+      if (needsOpenAI && !data.openaiConfigured) missing.push("OPENAI_API_KEY");
+      statusDot.title = missing.length ? `Eksik: ${missing.join(", ")}` : "Sunucu hatasi";
     }
   } catch {
     statusDot.className = "status-dot error";
@@ -197,6 +221,37 @@ function stopRecording() {
   micLabel.textContent = "Isleniyor...";
 }
 
+/** OpenAI Whisper ve tarayici Web Speech modlarinin ortak devami: metni sohbete gonder. */
+async function processUserText(userText) {
+  if (!userText) {
+    addBubble("system", "Bir sey duyamadim, tekrar dener misin?");
+    return;
+  }
+  addBubble("user", userText);
+
+  if (isSelfImproveCommand(userText)) {
+    await speak("Tamam, kendimi gelistirmeye basliyorum.");
+    await runSelfImprove();
+    return;
+  }
+
+  const chatRes = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ message: userText, history }),
+  });
+  const chatData = await chatRes.json();
+  if (!chatRes.ok) throw new Error(chatData.error || "Sohbet hatasi");
+
+  const replyText = chatData.reply;
+  addBubble("assistant", replyText);
+  history.push({ role: "user", content: userText });
+  history.push({ role: "assistant", content: replyText });
+
+  await speak(replyText);
+  refreshLearnedPanel();
+}
+
 async function handleRecordedAudio() {
   setBusy(true);
   try {
@@ -212,34 +267,7 @@ async function handleRecordedAudio() {
     const transcribeData = await transcribeRes.json();
     if (!transcribeRes.ok) throw new Error(transcribeData.error || "Ses tanima hatasi");
 
-    const userText = (transcribeData.text || "").trim();
-    if (!userText) {
-      addBubble("system", "Bir sey duyamadim, tekrar dener misin?");
-      return;
-    }
-    addBubble("user", userText);
-
-    if (isSelfImproveCommand(userText)) {
-      await speak("Tamam, kendimi gelistirmeye basliyorum.");
-      await runSelfImprove();
-      return;
-    }
-
-    const chatRes = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ message: userText, history }),
-    });
-    const chatData = await chatRes.json();
-    if (!chatRes.ok) throw new Error(chatData.error || "Sohbet hatasi");
-
-    const replyText = chatData.reply;
-    addBubble("assistant", replyText);
-    history.push({ role: "user", content: userText });
-    history.push({ role: "assistant", content: replyText });
-
-    await speak(replyText);
-    refreshLearnedPanel();
+    await processUserText((transcribeData.text || "").trim());
   } catch (err) {
     console.error(err);
     addBubble("system", `Hata: ${err.message}`);
@@ -249,7 +277,55 @@ async function handleRecordedAudio() {
   }
 }
 
+function startBrowserListening() {
+  isRecording = true;
+  micButton.classList.add("recording");
+  micLabel.textContent = "Dinliyorum...";
+  try {
+    recognition.start();
+  } catch (err) {
+    console.error("[recognition:start]", err);
+  }
+}
+
+function resetBrowserListeningUI() {
+  isRecording = false;
+  micButton.classList.remove("recording");
+  micLabel.textContent = "Konusmak icin bas";
+}
+
+if (recognition) {
+  recognition.onresult = async (event) => {
+    const transcript = event.results[0][0].transcript.trim();
+    setBusy(true);
+    try {
+      await processUserText(transcript);
+    } catch (err) {
+      console.error(err);
+      addBubble("system", `Hata: ${err.message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+  recognition.onerror = (event) => {
+    if (event.error !== "no-speech" && event.error !== "aborted") {
+      addBubble("system", `Ses tanima hatasi: ${event.error}`);
+    }
+  };
+  recognition.onend = resetBrowserListeningUI;
+}
+
 async function speak(text) {
+  if (voiceEngine === "browser") {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "tr-TR";
+    const trVoice = cachedVoices.find((v) => v.lang?.toLowerCase().startsWith("tr"));
+    if (trVoice) utterance.voice = trVoice;
+    window.speechSynthesis.speak(utterance);
+    return;
+  }
   try {
     const res = await fetch("/api/speak", {
       method: "POST",
@@ -267,6 +343,20 @@ async function speak(text) {
 
 micButton.addEventListener("click", async () => {
   if (isBusy && !isRecording) return;
+
+  if (voiceEngine === "browser") {
+    if (!recognition) {
+      addBubble("system", "Tarayicin sesli tanimayi desteklemiyor. Yukaridan OpenAI moduna gecebilirsin.");
+      return;
+    }
+    if (!isRecording) {
+      startBrowserListening();
+    } else {
+      recognition.stop();
+    }
+    return;
+  }
+
   if (!isRecording) {
     try {
       await startRecording();
@@ -276,6 +366,21 @@ micButton.addEventListener("click", async () => {
   } else {
     stopRecording();
   }
+});
+
+document.querySelectorAll('input[name="voice-engine"]').forEach((radio) => {
+  radio.checked = radio.value === voiceEngine;
+  radio.addEventListener("change", () => {
+    if (!radio.checked) return;
+    if (radio.value === "browser" && !browserSpeechSupported) {
+      addBubble("system", "Tarayicin bu ozelligi desteklemiyor (Chrome/Edge onerilir).");
+      radio.checked = false;
+      return;
+    }
+    voiceEngine = radio.value;
+    localStorage.setItem("voiceEngine", voiceEngine);
+    checkHealth();
+  });
 });
 
 async function runSelfImprove() {

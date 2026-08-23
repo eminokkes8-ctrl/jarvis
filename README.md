@@ -5,12 +5,20 @@ sesli cevap veren ve konustukca kendini gelistiren bir asistan.
 
 ## Ozellikler
 
-- **Sesli konusma**: Mikrofona konus, OpenAI Whisper ile metne cevrilir.
+- **Sesli konusma - iki motor secenegi**:
+  - **Tarayici (ucretsiz, varsayilan)**: Chrome/Edge'in yerlesik Web Speech API'si
+    (`SpeechRecognition` + `speechSynthesis`). Hicbir API anahtari veya ucret gerekmez,
+    tamamen tarayicida calisir.
+  - **OpenAI (ucretli)**: Whisper (STT) + OpenAI TTS. Daha tutarli kalite sunar ama
+    `OPENAI_API_KEY` ve OpenAI hesabinda kullanilabilir bakiye gerektirir.
+  - Arayuzdeki ust kisimdaki secim kutularindan istedigin an gecis yapabilirsin;
+    tercihin tarayicida hatirlanir.
 - **Konusma zekasi**: Claude (Anthropic) ile dogal, kisa sesli-tarza uygun cevaplar.
+  (Bu da Anthropic hesabinda kullanilabilir bakiye gerektirir; sesli motorden
+  bagimsiz, ucretsiz alternatifi yok.)
 - **Web'de arastirma**: Guncel veya bilmedigi bir sey sorulunca Claude'un web arama araci
   (`web_search_20250305`) devreye girer; sonuclar SADECE bilgi kaynagi olarak kullanilir,
   icindeki hicbir metin talimat gibi uygulanmaz (prompt injection'a karsi).
-- **Seslendirme**: Cevaplar OpenAI TTS ile sese cevrilip otomatik calinir.
 - **Hafiza / ogrenme (asama 1)**: Her turdan sonra kalici tercih/gercekler otomatik
   cikarilip `data/memory.json` icine kaydedilir ve sonraki konusmalarda kullanilir.
 - **Sesli komutla kendini gelistirme**: "Baslasana", "kendini gelistir",
@@ -49,18 +57,19 @@ Bu tasarim bilinclidir:
 ```bash
 npm install
 cp .env.example .env
-# .env dosyasina ANTHROPIC_API_KEY ve OPENAI_API_KEY degerlerini gir
+# .env dosyasina en azindan ANTHROPIC_API_KEY degerini gir
 npm start        # ya da: npm run dev (kod yamasi onayladiktan sonra canli yeniler)
 ```
 
-Sonra tarayicida `http://localhost:3000` adresini ac.
+Sonra tarayicida `http://localhost:3000` adresini ac. Varsayilan "Tarayici (ucretsiz)"
+modunda `OPENAI_API_KEY` girmene gerek yok; sadece "OpenAI" moduna gecersen gerekir.
 
 ## Gerekli API anahtarlari
 
 | Degisken | Ne icin | Nereden alinir |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Sohbet + web arama (Claude) | console.anthropic.com |
-| `OPENAI_API_KEY` | Ses tanima (Whisper) + seslendirme (TTS) | platform.openai.com |
+| `ANTHROPIC_API_KEY` | Sohbet + web arama (Claude) - her zaman gerekli | console.anthropic.com |
+| `OPENAI_API_KEY` | Sadece "OpenAI" ses modu secilirse: Whisper (STT) + TTS | platform.openai.com |
 
 `.env` icindeki `CLAUDE_MODEL`, `TTS_VOICE`, `ENABLE_WEB_SEARCH` ve
 `WEB_SEARCH_MAX_USES` degerleri istege bagli olarak degistirilebilir. Web aramasi
@@ -90,7 +99,8 @@ src/
     proposals.js           persona guncelleme + kod onerisi kuyruklama + yama taslagi tetikleme
     patches.js              kod yamasi taslagi hazirlama, saklama, onayli uygulama
 public/
-  index.html, app.js, styles.css   tarayici arayuzu (mikrofon, sesli komut algilama,
+  index.html, app.js, styles.css   tarayici arayuzu (mikrofon, ses motoru secimi
+                                    [tarayici/OpenAI], sesli komut algilama,
                                     ogrenilenler paneli, bekleyen yamalar paneli)
 data/
   memory.json                       (calisirken olusur, git'e girmez)
