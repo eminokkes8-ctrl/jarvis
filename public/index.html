@@ -91,6 +91,23 @@
 
       <aside class="side-panels">
         <div class="panel">
+          <h2>Ses Profili</h2>
+          <p class="panel-hint">
+            Kaydedince, komutlarin sadece bu sese (kaba bir tahminle) benzeyince
+            islenir. Ucretsiz ama yaklasik bir yontemdir - %100 guvenilir degildir.
+          </p>
+          <div class="voice-profile-row">
+            <button id="enroll-voice-button" class="ghost-button" type="button">
+              Sesimi Kaydet
+            </button>
+            <button id="reset-voice-button" class="ghost-button" type="button" hidden>
+              Sifirla
+            </button>
+          </div>
+          <div id="voice-profile-status" class="voice-profile-status">Ses profili: kayitli degil</div>
+        </div>
+
+        <div class="panel">
           <h2>Ogrenilenler</h2>
           <div id="learned-content" class="panel-content">Henuz bir sey ogrenilmedi.</div>
         </div>

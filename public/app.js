@@ -11,6 +11,9 @@ const youtubePanel = document.getElementById("youtube-panel");
 const youtubeFrame = document.getElementById("youtube-frame");
 const youtubeOpenLink = document.getElementById("youtube-open-link");
 const youtubeClose = document.getElementById("youtube-close");
+const enrollVoiceButton = document.getElementById("enroll-voice-button");
+const resetVoiceButton = document.getElementById("reset-voice-button");
+const voiceProfileStatus = document.getElementById("voice-profile-status");
 
 function setOrbState(state) {
   if (!orb) return;
@@ -124,6 +127,206 @@ function parseVolumeCommand(text) {
 
   const percent = Math.max(0, Math.min(100, parseInt(match[1], 10)));
   return { percent };
+}
+
+// --- Ucretsiz/kaba ses profili dogrulamasi (konusmaci filtreleme) ---
+// Bu, GERCEK bir konusmaci dogrulama sistemi DEGILDIR. Sadece ortalama pitch (temel
+// frekans) ve spektral merkez (sesin "parlakligi") olcup kiyaslayan basit bir
+// yaklastirmadir. Yanlis kabul/red olabilir - amac mukemmel guvenlik degil, kaba
+// bir filtreleme; profil kayitli degilse hicbir sey filtrelenmez.
+const VOICE_PROFILE_KEY = "jarvisVoiceProfile";
+const VOICE_PITCH_TOLERANCE = 0.18;
+const VOICE_CENTROID_TOLERANCE = 0.35;
+
+function loadVoiceProfile() {
+  try {
+    const raw = localStorage.getItem(VOICE_PROFILE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveVoiceProfile(profile) {
+  try {
+    localStorage.setItem(VOICE_PROFILE_KEY, JSON.stringify(profile));
+  } catch {
+    // localStorage kullanilamiyor, sessizce gec
+  }
+}
+
+function clearVoiceProfileStorage() {
+  try {
+    localStorage.removeItem(VOICE_PROFILE_KEY);
+  } catch {
+    // yoksay
+  }
+}
+
+/** Basit zaman-alani otokorelasyon tabanli temel frekans (pitch) tahmini. */
+function detectPitch(timeData, sampleRate) {
+  const size = timeData.length;
+  let rms = 0;
+  for (let i = 0; i < size; i++) rms += timeData[i] * timeData[i];
+  rms = Math.sqrt(rms / size);
+  if (rms < 0.01) return null;
+
+  const maxSamples = Math.floor(size / 2);
+  const minOffset = Math.floor(sampleRate / 500);
+  const maxOffset = Math.min(Math.floor(sampleRate / 60), maxSamples - 1);
+  let bestOffset = -1;
+  let bestCorrelation = 0;
+
+  for (let offset = minOffset; offset < maxOffset; offset++) {
+    let correlation = 0;
+    for (let i = 0; i < maxSamples; i++) {
+      correlation += Math.abs(timeData[i] - timeData[i + offset]);
+    }
+    correlation = 1 - correlation / maxSamples;
+    if (correlation > bestCorrelation) {
+      bestCorrelation = correlation;
+      bestOffset = offset;
+    }
+  }
+
+  return bestCorrelation > 0.5 && bestOffset > 0 ? sampleRate / bestOffset : null;
+}
+
+/** Ses spektrumunun "agirlik merkezi" - kabaca sesin ne kadar tiz/parlak oldugunu yansitir. */
+function spectralCentroid(freqData, sampleRate, fftSize) {
+  let weightedSum = 0;
+  let total = 0;
+  const binWidth = sampleRate / fftSize;
+  for (let i = 0; i < freqData.length; i++) {
+    weightedSum += i * binWidth * freqData[i];
+    total += freqData[i];
+  }
+  return total > 0 ? weightedSum / total : 0;
+}
+
+/** Mikrofon akisini surekli orneklerken pitch/spektral merkez biriktiren bir analizor olusturur. */
+function createVoiceAnalyzer(stream) {
+  const AudioContextImpl = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextImpl) return null;
+
+  const audioCtx = new AudioContextImpl();
+  const source = audioCtx.createMediaStreamSource(stream);
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 2048;
+  source.connect(analyser);
+
+  const timeData = new Float32Array(analyser.fftSize);
+  const freqData = new Uint8Array(analyser.frequencyBinCount);
+  const pitches = [];
+  const centroids = [];
+
+  const intervalId = setInterval(() => {
+    analyser.getFloatTimeDomainData(timeData);
+    analyser.getByteFrequencyData(freqData);
+    const pitch = detectPitch(timeData, audioCtx.sampleRate);
+    if (pitch) pitches.push(pitch);
+    centroids.push(spectralCentroid(freqData, audioCtx.sampleRate, analyser.fftSize));
+  }, 100);
+
+  return {
+    stop() {
+      clearInterval(intervalId);
+      audioCtx.close().catch(() => {});
+      const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
+      return { avgPitch: avg(pitches), avgCentroid: avg(centroids), sampleCount: pitches.length };
+    },
+  };
+}
+
+function voiceMatchesProfile(sample, profile) {
+  if (!sample?.avgPitch || !profile?.avgPitch) return true; // yeterli veri yok, guvenli tarafta gecir
+  const pitchDiff = Math.abs(sample.avgPitch - profile.avgPitch) / profile.avgPitch;
+  const centroidDiff = profile.avgCentroid
+    ? Math.abs((sample.avgCentroid || 0) - profile.avgCentroid) / profile.avgCentroid
+    : 0;
+  return pitchDiff < VOICE_PITCH_TOLERANCE && centroidDiff < VOICE_CENTROID_TOLERANCE;
+}
+
+function isVoiceAuthorized(sample) {
+  const profile = loadVoiceProfile();
+  if (!profile) return true; // henuz kayitli profil yok, filtrelemeden gecir
+  return voiceMatchesProfile(sample, profile);
+}
+
+function updateVoiceProfileStatus() {
+  if (!voiceProfileStatus) return;
+  const profile = loadVoiceProfile();
+  if (profile) {
+    voiceProfileStatus.textContent = "Ses profili: kayitli - komutlar bu sese kiyaslanacak";
+    voiceProfileStatus.classList.add("enrolled");
+    if (resetVoiceButton) resetVoiceButton.hidden = false;
+  } else {
+    voiceProfileStatus.textContent = "Ses profili: kayitli degil - herkesin sesi kabul ediliyor";
+    voiceProfileStatus.classList.remove("enrolled");
+    if (resetVoiceButton) resetVoiceButton.hidden = true;
+  }
+}
+
+async function enrollVoice() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    addBubble("system", "Tarayicin mikrofon erisimini desteklemiyor.");
+    return;
+  }
+  enrollVoiceButton.disabled = true;
+  addBubble("system", "Ses profilini kaydediyorum, lutfen 4 saniye boyunca dogal sekilde konus...");
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const analyzer = createVoiceAnalyzer(stream);
+    if (!analyzer) throw new Error("Bu tarayici ses analizini desteklemiyor");
+
+    await new Promise((resolve) => setTimeout(resolve, 4000));
+    const sample = analyzer.stop();
+
+    if (!sample.avgPitch || sample.sampleCount < 5) {
+      addBubble("system", "Yeterince ses algilayamadim, tekrar dener misin?");
+      return;
+    }
+
+    saveVoiceProfile({
+      avgPitch: sample.avgPitch,
+      avgCentroid: sample.avgCentroid,
+      enrolledAt: new Date().toISOString(),
+    });
+    addBubble(
+      "system",
+      "Ses profili kaydedildi. Bundan sonra farkli bir ses komut vermeye calisirsa (kaba bir tahminle) yoksayacagim - bu %100 guvenilir bir yontem degil."
+    );
+    updateVoiceProfileStatus();
+  } catch (err) {
+    addBubble("system", `Ses profili kaydedilemedi: ${err.message}`);
+  } finally {
+    stream?.getTracks().forEach((t) => t.stop());
+    enrollVoiceButton.disabled = false;
+  }
+}
+
+enrollVoiceButton?.addEventListener("click", enrollVoice);
+resetVoiceButton?.addEventListener("click", () => {
+  clearVoiceProfileStorage();
+  updateVoiceProfileStatus();
+  addBubble("system", "Ses profili silindi, artik herkesin sesi kabul edilecek.");
+});
+
+// Bir dinleme oturumu sirasinda calisan ses analizini durdurup ornegi dondurur;
+// mikrofon akisini da kapatir. Analiz/akis zaten yoksa zararsizca hicbir sey yapmaz.
+let currentVoiceAnalyzer = null;
+let currentMicStream = null;
+let lastVoiceSample = null;
+
+function finishVoiceCapture() {
+  const sample = currentVoiceAnalyzer ? currentVoiceAnalyzer.stop() : null;
+  currentVoiceAnalyzer = null;
+  if (currentMicStream) {
+    currentMicStream.getTracks().forEach((t) => t.stop());
+    currentMicStream = null;
+  }
+  return sample;
 }
 
 // Ses motoru: "browser" (Web Speech API, ucretsiz, API anahtari gerekmez, Chrome/Edge onerilir)
@@ -294,11 +497,13 @@ async function startRecording() {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   recordedChunks = [];
   mediaRecorder = new MediaRecorder(stream);
+  currentMicStream = stream;
+  currentVoiceAnalyzer = createVoiceAnalyzer(stream);
   mediaRecorder.ondataavailable = (e) => {
     if (e.data.size > 0) recordedChunks.push(e.data);
   };
   mediaRecorder.onstop = () => {
-    stream.getTracks().forEach((track) => track.stop());
+    lastVoiceSample = finishVoiceCapture();
     handleRecordedAudio();
   };
   mediaRecorder.start();
@@ -401,6 +606,12 @@ async function handleRecordedAudio() {
     const transcribeData = await transcribeRes.json();
     if (!transcribeRes.ok) throw new Error(transcribeData.error || "Ses tanima hatasi");
 
+    if (!isVoiceAuthorized(lastVoiceSample)) {
+      addBubble("system", "Bu komutu senin sesin gibi taniyamadim, yoksayiyorum.");
+      setOrbState("idle");
+      return;
+    }
+
     await processUserText((transcribeData.text || "").trim());
   } catch (err) {
     console.error(err);
@@ -412,11 +623,21 @@ async function handleRecordedAudio() {
   }
 }
 
-function startBrowserListening() {
+async function startBrowserListening() {
   isRecording = true;
   micButton.classList.add("recording");
   micLabel.textContent = "Dinliyorum...";
   setOrbState("listening");
+
+  // SpeechRecognition ham sese erisim vermedigi icin, ses profili analizi icin
+  // ayrica bir mikrofon akisi aliyoruz.
+  try {
+    currentMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    currentVoiceAnalyzer = createVoiceAnalyzer(currentMicStream);
+  } catch (err) {
+    console.warn("[voice] ses profili analizi baslatilamadi:", err.message);
+  }
+
   try {
     recognition.start();
   } catch (err) {
@@ -433,8 +654,14 @@ function resetBrowserListeningUI() {
 if (recognition) {
   recognition.onresult = async (event) => {
     const transcript = event.results[0][0].transcript.trim();
+    const sample = finishVoiceCapture();
     setBusy(true);
     try {
+      if (!isVoiceAuthorized(sample)) {
+        addBubble("system", "Bu komutu senin sesin gibi taniyamadim, yoksayiyorum.");
+        setOrbState("idle");
+        return;
+      }
       await processUserText(transcript);
     } catch (err) {
       console.error(err);
@@ -445,11 +672,15 @@ if (recognition) {
     }
   };
   recognition.onerror = (event) => {
+    finishVoiceCapture();
     if (event.error !== "no-speech" && event.error !== "aborted") {
       addBubble("system", `Ses tanima hatasi: ${event.error}`);
     }
   };
-  recognition.onend = resetBrowserListeningUI;
+  recognition.onend = () => {
+    finishVoiceCapture();
+    resetBrowserListeningUI();
+  };
 }
 
 async function speak(text) {
@@ -592,3 +823,4 @@ improveButton.addEventListener("click", async () => {
 checkHealth();
 refreshLearnedPanel();
 refreshPatchesPanel();
+updateVoiceProfileStatus();

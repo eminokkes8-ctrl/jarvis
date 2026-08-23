@@ -44,6 +44,13 @@ calisacak sekilde ayarlanmistir (Google Gemini + tarayici sesi).
 - **Sesli komutla sistem sesi ayarlama**: "Sesi %70 yap", "ses seviyesini 30 yap" gibi
   bir sey soyleyince, sunucunun calistigi bilgisayarin (sadece Windows) sistem ses
   seviyesini o yuzdeye ayarlar.
+- **Ucretsiz/kaba ses profili dogrulamasi (konusmaci filtreleme)**: Yan paneldeki
+  "Sesimi Kaydet" ile 4 saniyelik bir ses ornegi kaydedip tarayicida (localStorage)
+  saklarsin. Kayittan sonra, her komut oncesi o anki konusmacinin ses ozellikleri
+  (ortalama pitch + spektral renk) kayitli profille kiyaslanir; uyusmuyorsa komut
+  yoksayilir. Bu GERCEK bir konusmaci dogrulamasi DEGILDIR - ucretsiz ve basit bir
+  yaklastirmadir, yanlis kabul/red olabilir. Profil kaydedilmediyse hicbir filtreleme
+  yapilmaz (herkesin sesi kabul edilir).
 
 ## Bilgisayar kontrolu (Windows) - onemli sinirlama
 
