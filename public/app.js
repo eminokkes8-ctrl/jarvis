@@ -88,6 +88,44 @@ youtubeClose?.addEventListener("click", () => {
   if (youtubePanel) youtubePanel.hidden = true;
 });
 
+/**
+ * Once sunucunun CALISTIGI bilgisayarda GERCEK Chrome'u acmayi dener (sadece
+ * Jarvis kendi bilgisayarinda calistiriliyorsa anlamlidir). Basarisiz olursa
+ * (ornegin Chrome bulunamadi, farkli isletim sistemi, vs.) sayfa icindeki
+ * gomulu oynaticiya geri duser.
+ * @returns {Promise<boolean>} gercekten Chrome'da acildiysa true
+ */
+async function openMusicOnSystem(query) {
+  try {
+    const res = await fetch("/api/system/open-youtube", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ query }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Chrome acilamadi");
+    return true;
+  } catch (err) {
+    console.warn("[system] gercek Chrome acilamadi, gomulu oynaticiya donuluyor:", err.message);
+    playYouTube(query);
+    return false;
+  }
+}
+
+// "Sesi %70 yap", "sesi yuzde 50 ayarla" gibi komutlari algilar. Sadece Windows'ta
+// (sunucunun calistigi bilgisayarda) calisir.
+function parseVolumeCommand(text) {
+  const norm = normalizeCommand(text);
+  if (!/(ses|volume)/i.test(norm)) return null;
+  if (!/(yap|ayarla|getir|olsun)\b/i.test(norm)) return null;
+
+  const match = norm.match(/(\d{1,3})/);
+  if (!match) return null;
+
+  const percent = Math.max(0, Math.min(100, parseInt(match[1], 10)));
+  return { percent };
+}
+
 // Ses motoru: "browser" (Web Speech API, ucretsiz, API anahtari gerekmez, Chrome/Edge onerilir)
 // ya da "openai" (Whisper + TTS, ucretli, .env icinde OPENAI_API_KEY gerekir).
 const SpeechRecognitionImpl = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -302,8 +340,30 @@ async function processUserText(userText) {
       setOrbState("idle");
       return;
     }
-    playYouTube(musicCommand.query);
-    await speak(`Tamam, "${musicCommand.query}" icin YouTube'da muzik caliyorum.`);
+    const openedInChrome = await openMusicOnSystem(musicCommand.query);
+    await speak(
+      openedInChrome
+        ? `Tamam, Chrome'da "${musicCommand.query}" icin YouTube'u aciyorum.`
+        : `Chrome'u su bilgisayarda acamadim, "${musicCommand.query}" icin burada caliyorum.`
+    );
+    return;
+  }
+
+  const volumeCommand = parseVolumeCommand(userText);
+  if (volumeCommand) {
+    try {
+      const res = await fetch("/api/system/volume", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ percent: volumeCommand.percent }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ses ayarlanamadi");
+      await speak(`Tamam, sesi yuzde ${data.percent} yaptim.`);
+    } catch (err) {
+      addBubble("system", `Hata: ${err.message}`);
+      setOrbState("idle");
+    }
     return;
   }
 

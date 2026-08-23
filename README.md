@@ -37,10 +37,35 @@ calisacak sekilde ayarlanmistir (Google Gemini + tarayici sesi).
     sayi kasitli olarak dusuk tutulur: ucretsiz LLM katmanlarinin (Gemini) dakika basina
     istek siniri var.
 - **Sesli komutla YouTube'dan muzik calma**: "Youtube'den <sarki> calar misin", "muzik ac"
-  gibi bir sey soyleyince, sayfada gomulu bir YouTube oynatici acilip arama sonucunu
-  otomatik calar (API anahtari gerekmez, YouTube'un `listType=search` embed ozelligini
-  kullanir). Tarayicinin otomatik oynatma politikasi engellerse "YouTube'da Ac" linkinden
-  yeni sekmede acilabilir.
+  gibi bir sey soyleyince, once sunucunun calistigi bilgisayarda **gercek Chrome'u**
+  acmayi dener; basarisiz olursa (Chrome bulunamadi, farkli isletim sistemi vb.) sayfa
+  icinde gomulu bir YouTube oynaticiya geri duser. Detaylar icin asagidaki
+  "Bilgisayar kontrolu" bolumune bak.
+- **Sesli komutla sistem sesi ayarlama**: "Sesi %70 yap", "ses seviyesini 30 yap" gibi
+  bir sey soyleyince, sunucunun calistigi bilgisayarin (sadece Windows) sistem ses
+  seviyesini o yuzdeye ayarlar.
+
+## Bilgisayar kontrolu (Windows) - onemli sinirlama
+
+Muzik calma ve ses seviyesi ozellikleri, sunucunun **CALISTIGI bilgisayari** kontrol
+eder - konusan kisinin degil. Bu, sadece Jarvis'i kendi bilgisayarinda `npm start`
+ile calistirdigin senaryoda anlam ifade eder (senin durumun budur). Eger bu sunucuyu
+ileride uzak/paylasimli bir yerde barindirirsan, bu komutlar SUNUCUNUN bulundugu
+makineyi etkiler, seninkini degil - bu yuzden bu ozellikler kasitli olarak basit ve
+tek-kullanicili bir yerel kurulum varsayimiyla tasarlandi.
+
+- **Muzik calma**: `src/lib/systemControl.js` icindeki `openUrlInChrome()`, Windows'ta
+  `start "" "chrome" "<url>"`, macOS'ta `open -a "Google Chrome"`, Linux'ta `xdg-open`
+  komutunu calistirir. Sadece `https://www.youtube.com/...` ile baslayan adreslere izin
+  verilir (baska bir adres denenirse reddedilir).
+- **Ses seviyesi**: `setSystemVolumePercent()` sadece Windows'ta calisir; Windows'un
+  yerlesik Core Audio API'sini PowerShell uzerinden kullanir (nircmd gibi ekstra bir
+  program kurulumu GEREKMEZ). Deger her zaman 0-100 arasina sinirlandirilir.
+- Ikisi de `child_process` ile yerel komut calistirdigi icin, bu API'lere
+  (`/api/system/open-youtube`, `/api/system/volume`) disaridan/agdan erisimi
+  olabilecek bir ortamda **calistirmamalisin** - varsayilan olarak sadece
+  `localhost` uzerinden erisilebilir oldugu icin (Express sunucusu disariya acik
+  degil) bu risk normal kullanimda yok, ama bunu bilerek unutma.
 
 ## Kod yamalari: otomatik hazirlanir, insan onayiyla uygulanir
 
@@ -123,6 +148,7 @@ src/
   lib/gemini.js          Google Gemini API istemcisi (ucretsiz katman)
   lib/anthropic.js       Claude Messages API istemcisi (+ web_search araci)
   lib/openai.js          Whisper (STT) + TTS API istemcisi
+  lib/systemControl.js   Yerel bilgisayarda Chrome acma + (Windows) sistem sesi ayarlama
   routes/
     transcribe.js        POST /api/transcribe        - ses -> metin
     chat.js               POST /api/chat              - metin -> LLM cevabi
@@ -132,6 +158,8 @@ src/
     patches.js             GET  /api/patches            - bekleyen/islenmis yamalar
                            POST /api/patches/:id/apply  - yamayi ONAYLA ve dosyaya yaz
                            POST /api/patches/:id/reject - yamayi reddet
+    system.js              POST /api/system/open-youtube - yerel bilgisayarda Chrome ac
+                           POST /api/system/volume       - (Windows) sistem sesini ayarla
   memory/
     store.js              data/memory.json okuma/yazma
     extract.js             her turdan kalici bilgi cikarma

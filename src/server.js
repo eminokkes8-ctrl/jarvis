@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { transcribeRouter } from "./routes/transcribe.js";
 import { chatRouter } from "./routes/chat.js";
@@ -8,6 +9,7 @@ import { speakRouter } from "./routes/speak.js";
 import { selfImproveRouter } from "./routes/selfImprove.js";
 import { stateRouter } from "./routes/state.js";
 import { patchesRouter } from "./routes/patches.js";
+import { systemRouter } from "./routes/system.js";
 import { LLM_PROVIDER } from "./lib/llm.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -23,11 +25,13 @@ app.use(speakRouter);
 app.use(selfImproveRouter);
 app.use(stateRouter);
 app.use(patchesRouter);
+app.use(systemRouter);
 
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
     llmProvider: LLM_PROVIDER,
+    platform: os.platform(),
     anthropicConfigured: Boolean(process.env.ANTHROPIC_API_KEY),
     geminiConfigured: Boolean(process.env.GEMINI_API_KEY),
     openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
