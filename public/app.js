@@ -4,7 +4,34 @@ const micLabel = document.getElementById("mic-label");
 const improveButton = document.getElementById("improve-button");
 const statusDot = document.getElementById("status-dot");
 const learnedContent = document.getElementById("learned-content");
+const patchesContent = document.getElementById("patches-content");
 const ttsAudio = document.getElementById("tts-audio");
+
+// Bu ifadeler soylenince asistan otomatik olarak kendini gelistirme analizini baslatir.
+// Kasitli olarak dar tutuldu: normal sohbeti yanlislikla tetiklememeli.
+const SELF_IMPROVE_EXACT_TRIGGERS = new Set(["basla", "hadi basla", "haydi basla"]);
+const SELF_IMPROVE_CONTAINS_TRIGGERS = [
+  "kendini gelistir",
+  "kendini gelistirmeye basla",
+  "kendini gelistirmeye baslar misin",
+  "ogrenmeye basla",
+  "hatalarini duzelt",
+  "kendi kendini duzelt",
+];
+
+function normalizeCommand(text) {
+  return text
+    .trim()
+    .toLocaleLowerCase("tr-TR")
+    .replace(/[.!?]+$/g, "")
+    .trim();
+}
+
+function isSelfImproveCommand(text) {
+  const norm = normalizeCommand(text);
+  if (SELF_IMPROVE_EXACT_TRIGGERS.has(norm)) return true;
+  return SELF_IMPROVE_CONTAINS_TRIGGERS.some((t) => norm.includes(t));
+}
 
 /** @type {{role: "user"|"assistant", content: string}[]} */
 let history = [];
@@ -67,6 +94,83 @@ async function refreshLearnedPanel() {
   }
 }
 
+function renderPatch(patch) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "patch-card";
+
+  const title = document.createElement("div");
+  title.className = "patch-title";
+  title.textContent = `${patch.targetFile} - ${patch.explanation || patch.proposal}`;
+  wrapper.appendChild(title);
+
+  const diffPre = document.createElement("pre");
+  diffPre.className = "patch-diff";
+  diffPre.textContent = patch.diff;
+  wrapper.appendChild(diffPre);
+
+  if (patch.status === "pending") {
+    const actions = document.createElement("div");
+    actions.className = "patch-actions";
+
+    const applyBtn = document.createElement("button");
+    applyBtn.className = "ghost-button";
+    applyBtn.textContent = "Onayla ve Uygula";
+    applyBtn.addEventListener("click", () => decidePatch(patch.id, "apply"));
+
+    const rejectBtn = document.createElement("button");
+    rejectBtn.className = "ghost-button";
+    rejectBtn.textContent = "Reddet";
+    rejectBtn.addEventListener("click", () => decidePatch(patch.id, "reject"));
+
+    actions.appendChild(applyBtn);
+    actions.appendChild(rejectBtn);
+    wrapper.appendChild(actions);
+  } else {
+    const statusEl = document.createElement("div");
+    statusEl.className = "patch-status";
+    statusEl.textContent = patch.status === "applied" ? "Uygulandi" : "Reddedildi";
+    wrapper.appendChild(statusEl);
+  }
+
+  return wrapper;
+}
+
+async function refreshPatchesPanel() {
+  if (!patchesContent) return;
+  try {
+    const res = await fetch("/api/patches");
+    const data = await res.json();
+    const pending = (data.patches || []).filter((p) => p.status === "pending");
+    patchesContent.innerHTML = "";
+    if (pending.length === 0) {
+      patchesContent.textContent = "Bekleyen kod yamasi yok.";
+      return;
+    }
+    for (const patch of pending) {
+      patchesContent.appendChild(renderPatch(patch));
+    }
+  } catch {
+    // sessizce gec
+  }
+}
+
+async function decidePatch(id, action) {
+  try {
+    const res = await fetch(`/api/patches/${id}/${action}`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Islem basarisiz");
+    addBubble(
+      "system",
+      action === "apply"
+        ? `Yama uygulandi: ${data.patch.targetFile}. Degisikligin etkin olmasi icin sunucuyu yeniden baslatman gerekebilir (npm run dev canli yeniler).`
+        : `Yama reddedildi: ${data.patch.targetFile}.`
+    );
+    refreshPatchesPanel();
+  } catch (err) {
+    addBubble("system", `Hata: ${err.message}`);
+  }
+}
+
 async function startRecording() {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   recordedChunks = [];
@@ -114,6 +218,12 @@ async function handleRecordedAudio() {
       return;
     }
     addBubble("user", userText);
+
+    if (isSelfImproveCommand(userText)) {
+      await speak("Tamam, kendimi gelistirmeye basliyorum.");
+      await runSelfImprove();
+      return;
+    }
 
     const chatRes = await fetch("/api/chat", {
       method: "POST",
@@ -168,12 +278,11 @@ micButton.addEventListener("click", async () => {
   }
 });
 
-improveButton.addEventListener("click", async () => {
+async function runSelfImprove() {
   if (history.length === 0) {
     addBubble("system", "Once biraz konusalim ki gelistirecek bir sey olsun.");
     return;
   }
-  setBusy(true);
   addBubble("system", "Son konusma uzerinden kendimi gelistiriyorum...");
   try {
     const res = await fetch("/api/self-improve", {
@@ -190,12 +299,23 @@ improveButton.addEventListener("click", async () => {
     if (data.queuedCodeProposals > 0) {
       addBubble("system", `${data.queuedCodeProposals} kod/ozellik onerisi, insan onayi icin data/self_improvement_proposals.md dosyasina kaydedildi.`);
     }
+    if (data.draftedPatches > 0) {
+      addBubble("system", `${data.draftedPatches} kod yamasi taslagi hazirlandi. Asagidaki "Bekleyen Kod Yamalari" panelinden inceleyip onaylayabilir ya da reddedebilirsin.`);
+    }
     if (!data.appliedPersonaUpdates?.length && !data.queuedCodeProposals) {
       addBubble("system", "Su an icin yeni bir oneri bulamadim.");
     }
     refreshLearnedPanel();
+    refreshPatchesPanel();
   } catch (err) {
     addBubble("system", `Hata: ${err.message}`);
+  }
+}
+
+improveButton.addEventListener("click", async () => {
+  setBusy(true);
+  try {
+    await runSelfImprove();
   } finally {
     setBusy(false);
   }
@@ -203,3 +323,4 @@ improveButton.addEventListener("click", async () => {
 
 checkHealth();
 refreshLearnedPanel();
+refreshPatchesPanel();

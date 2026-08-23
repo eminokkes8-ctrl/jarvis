@@ -7,6 +7,7 @@ import { chatRouter } from "./routes/chat.js";
 import { speakRouter } from "./routes/speak.js";
 import { selfImproveRouter } from "./routes/selfImprove.js";
 import { stateRouter } from "./routes/state.js";
+import { patchesRouter } from "./routes/patches.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.resolve(__dirname, "../public");
@@ -20,6 +21,7 @@ app.use(chatRouter);
 app.use(speakRouter);
 app.use(selfImproveRouter);
 app.use(stateRouter);
+app.use(patchesRouter);
 
 app.get("/api/health", (_req, res) => {
   res.json({

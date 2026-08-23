@@ -1,12 +1,17 @@
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const DEFAULT_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
 
+/** Anthropic'in sunucu tarafli web arama araci. Model gerekli gordugunde kendi tetikler. */
+export function webSearchTool({ maxUses = 3 } = {}) {
+  return { type: "web_search_20250305", name: "web_search", max_uses: maxUses };
+}
+
 /**
  * Claude Messages API'ye bir sohbet turu gonderir.
- * @param {{system?: string, messages: {role: "user"|"assistant", content: string}[], maxTokens?: number}} params
+ * @param {{system?: string, messages: {role: "user"|"assistant", content: string}[], maxTokens?: number, tools?: object[]}} params
  * @returns {Promise<string>} asistanin metin cevabi
  */
-export async function callClaude({ system, messages, maxTokens = 1024 }) {
+export async function callClaude({ system, messages, maxTokens = 1024, tools }) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error("ANTHROPIC_API_KEY tanimli degil (.env dosyasina ekleyin)");
@@ -24,6 +29,7 @@ export async function callClaude({ system, messages, maxTokens = 1024 }) {
       max_tokens: maxTokens,
       system,
       messages,
+      ...(tools ? { tools } : {}),
     }),
   });
 

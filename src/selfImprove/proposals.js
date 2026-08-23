@@ -3,6 +3,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { callClaude } from "../lib/anthropic.js";
 import { loadMemory } from "../memory/store.js";
+import { draftPatchForProposal } from "./patches.js";
+
+const MAX_AUTO_PATCH_DRAFTS = 2;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, "../../data");
@@ -110,5 +113,17 @@ export async function reflectAndPropose(history) {
   const applied = await appendPersonaUpdates(personaUpdates);
   await appendCodeProposals(codeProposals);
 
-  return { appliedPersonaUpdates: applied, queuedCodeProposals: codeProposals.length };
+  // Kod onerileri icin otomatik yama TASLAGI hazirla (data/patches.json, status "pending").
+  // Gercek dosyaya yazma islemi burada YAPILMAZ - insan onayi gerekir (bkz. patches.js).
+  let draftedPatches = 0;
+  for (const proposal of codeProposals.slice(0, MAX_AUTO_PATCH_DRAFTS)) {
+    try {
+      const patch = await draftPatchForProposal(proposal);
+      if (patch) draftedPatches += 1;
+    } catch (err) {
+      console.error("[self-improve] yama taslagi olusturulamadi:", err.message);
+    }
+  }
+
+  return { appliedPersonaUpdates: applied, queuedCodeProposals: codeProposals.length, draftedPatches };
 }

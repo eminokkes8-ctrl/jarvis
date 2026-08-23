@@ -3,4 +3,5 @@ node_modules/
 data/memory.json
 data/persona.md
 data/self_improvement_proposals.md
+data/patches.json
 *.log
