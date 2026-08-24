@@ -157,6 +157,69 @@ body {
   color: var(--danger);
 }
 
+/* Yardim paneli */
+
+.help-panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  padding: 14px 20px;
+  backdrop-filter: blur(18px);
+}
+
+.help-panel summary {
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  list-style: none;
+}
+
+.help-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.help-panel summary::before {
+  content: "▸ ";
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.help-panel[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.help-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+.help-group h3 {
+  font-size: 0.78rem;
+  color: var(--text);
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+.help-group p {
+  margin: 0 0 3px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.help-note {
+  margin: 14px 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  border-top: 1px solid var(--panel-border);
+  padding-top: 10px;
+}
+
 /* Layout */
 
 .layout {
@@ -414,6 +477,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* [hidden] normalde tarayicinin varsayilan stiliyle gizlenir, ama bir class
+   kurali "display" belirledigi zaman bu varsayilani ezer - bu yuzden acikca
+   belirtiyoruz. Ayni sorun baska gizlenebilir elemanlar icin de gecerli. */
+[hidden] {
+  display: none !important;
 }
 
 .youtube-panel-header {
