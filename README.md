@@ -47,6 +47,25 @@ calisacak sekilde ayarlanmistir (Google Gemini + tarayici sesi).
   - Mevcut seviyeye gore fark: "sesi %10 dusur", "sesi %30 yukselt"
   - Sayi verilmezse sabit bir adimla (15 puan): "sesi kis", "sesi ac", "sesi yukselt"
   - Sessize alma: "sesi kapat", "sesi sustur"
+- **Sesli komutla medya kontrolu**: "sonraki sarki", "onceki sarki", "muzigi duraklat",
+  "devam et" gibi komutlarla aktif medya oynaticisini (YouTube, Spotify vb.) kontrol
+  eder - klavyenin medya tuslarini simule eder (sadece Windows).
+- **Sesli komutla ekran parlakligi**: "parlakligi %70 yap", "parlakligi kis/ac",
+  "parlakligi %10 dusur" - ses seviyesiyle ayni mantik (sadece Windows, cogunlukla
+  dizustu dahili ekranlarda calisir).
+- **Sesli komutla ekran goruntusu**: "ekran goruntusu al" (istege bagli "...ve ac")
+  - masaustune PNG olarak kaydeder (sadece Windows).
+- **Sesli komutla uygulama acma**: "chrome'u ac", "not defterini ac", "hesap
+  makinesini ac", "spotify ac" gibi bilinen bir uygulama listesini acar (sadece
+  Windows, guvenlik icin sabit bir listeyle sinirli).
+- **Sesli komutla genel web islemleri**: "google'da <X> ara", "vikipedi'de <X> ara",
+  "whatsapp web ac" - sadece izinli bir site listesine (google/vikipedi/whatsapp)
+  acilabilir.
+- **Sesli komutla bilgisayari kilitleme/kapatma/yeniden baslatma**: "bilgisayari
+  kilitle" (aninda), "bilgisayari kapat" / "bilgisayari yeniden baslat" (60 saniye
+  gecikmeli, "kapatmayi iptal et" ile durdurulabilir) - yanlis anlasilan bir sesli
+  komutun bilgisayari aninda kapatmasini onlemek icin kasitli bir guvenlik onlemi
+  (sadece Windows).
 - **Ucretsiz/kaba ses profili dogrulamasi (konusmaci filtreleme)**: Yan paneldeki
   "Sesimi Kaydet" ile 4 saniyelik bir ses ornegi kaydedip tarayicida (localStorage)
   saklarsin. Kayittan sonra, her komut oncesi o anki konusmacinin ses ozellikleri

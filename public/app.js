@@ -53,7 +53,9 @@ function isSelfImproveCommand(text) {
 // alakasiz cumleler tetiklenmez. Eylem kelimesi cumlenin HERHANGI bir yerinde
 // aranir (sadece sonda degil) - eylemden SONRA bir sey varsa sarki adi orasi
 // sayilir, yoksa (eylem cumle sonundaysa) eylemden ONCEKI kisim kullanilir.
-const MUSIC_CONTEXT_RE = /(müzik|muzik|şarkı|sarki|youtube)/i;
+// "müzik" -> "müziği"/"müziğe" gibi eklerle "k" harfi "ğ"ye yumusar (unsuz
+// yumusamasi), bu yuzden "müzi[kğ]" seklinde her iki formu da eslestiriyoruz.
+const MUSIC_CONTEXT_RE = /(müzi[kğ]|muzi[kğ]|şarkı|sarki|youtube)/i;
 const MUSIC_ACTION_WORDS = [
   "çalar mısınız", "calar misiniz", "açar mısınız", "acar misiniz",
   "çalabilir misin", "calabilir misin", "açabilir misin", "acabilir misin",
@@ -90,7 +92,7 @@ function parseMusicCommand(text) {
 
   const query = candidate
     .replace(/youtube\s*'?(dan|den)?/gi, "")
-    .replace(/(müzik|muzik|şarkısını|sarkisini|şarkısı|sarkisi|şarkı|sarki)/gi, "")
+    .replace(/(müzi[kğ]\w*|muzi[kğ]\w*|şarkı\w*|sarki\w*)/gi, "")
     .replace(/^[,\s]+|[,\s]+$/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -168,6 +170,147 @@ function parseVolumeCommand(text) {
   }
   if (amount !== null && containsWholeWord(norm, VOLUME_SET_WORDS)) {
     return { type: "set", percent: amount };
+  }
+
+  return null;
+}
+
+// "Parlakligi %70 yap", "parlakligi kis/ac", "parlakligi %10 dusur" gibi komutlari
+// algilar. Ses komutuyla ayni fiil setini kullanir, sadece "parlak" baglami arar.
+const BRIGHTNESS_DEFAULT_STEP = 15;
+function parseBrightnessCommand(text) {
+  const norm = normalizeCommand(text);
+  if (!/parlak/i.test(norm)) return null;
+
+  const match = norm.match(/(\d{1,3})/);
+  const amount = match ? Math.max(0, Math.min(100, parseInt(match[1], 10))) : null;
+
+  if (containsWholeWord(norm, VOLUME_DECREASE_WORDS)) {
+    return { type: "delta", delta: -(amount ?? BRIGHTNESS_DEFAULT_STEP) };
+  }
+  if (containsWholeWord(norm, VOLUME_INCREASE_WORDS)) {
+    return { type: "delta", delta: amount ?? BRIGHTNESS_DEFAULT_STEP };
+  }
+  if (amount !== null && containsWholeWord(norm, VOLUME_SET_WORDS)) {
+    return { type: "set", percent: amount };
+  }
+  return null;
+}
+
+// "Sonraki sarki", "onceki sarki", "muzigi duraklat", "devam et" gibi medya kontrol
+// komutlarini algilar. Yanlislikla tetiklenmemesi icin muzik/video baglami arar.
+const MEDIA_CONTEXT_RE = /(şarkı|sarki|müzi[kğ]|muzi[kğ]|parça|parca|video)/i;
+const MEDIA_NEXT_WORDS = ["sonraki", "sıradaki", "siradaki"];
+const MEDIA_PREV_WORDS = ["önceki", "onceki"];
+const MEDIA_PAUSE_WORDS = ["duraklat", "durdur"];
+const MEDIA_RESUME_WORDS = ["devam et", "devam ettir", "sürdür", "surdur"];
+
+function parseMediaCommand(text) {
+  const norm = normalizeCommand(text);
+  if (!MEDIA_CONTEXT_RE.test(norm)) return null;
+  if (containsWholeWord(norm, MEDIA_NEXT_WORDS)) return { action: "next" };
+  if (containsWholeWord(norm, MEDIA_PREV_WORDS)) return { action: "previous" };
+  if (containsWholeWord(norm, MEDIA_PAUSE_WORDS)) return { action: "playpause" };
+  if (containsWholeWord(norm, MEDIA_RESUME_WORDS)) return { action: "playpause" };
+  return null;
+}
+
+// "Bilgisayari kilitle", "bilgisayari kapat", "bilgisayari yeniden baslat" gibi
+// komutlari algilar. Kilitleme haric hepsi "bilgisayar/pc/sistem" baglami ister -
+// boylece "sesi kapat" gibi baska bir komutla karismaz. Kapatma/yeniden baslatma
+// sunucu tarafinda 60 saniye gecikmeli calisir ve iptal edilebilir.
+const POWER_CONTEXT_RE = /(bilgisayar|pc|sistem)/i;
+function parsePowerCommand(text) {
+  const norm = normalizeCommand(text);
+  if (containsWholeWord(norm, ["kilitle"])) {
+    return { action: "lock" };
+  }
+  if (norm.includes("kapatmayi iptal") || norm.includes("kapatmayı iptal")) {
+    return { action: "cancel" };
+  }
+  if (!POWER_CONTEXT_RE.test(norm)) return null;
+  if (containsWholeWord(norm, ["yeniden baslat", "yeniden başlat"])) {
+    return { action: "restart" };
+  }
+  if (containsWholeWord(norm, ["uykuya al", "hazirda beklet", "hazırda beklet"])) {
+    return { action: "hibernate" };
+  }
+  if (containsWholeWord(norm, ["kapat"])) {
+    return { action: "shutdown" };
+  }
+  return null;
+}
+
+// "Ekran goruntusu al" (ve istege bagli "ac") komutunu algilar.
+function parseScreenshotCommand(text) {
+  const norm = normalizeCommand(text);
+  if (!norm.includes("ekran goruntusu") && !norm.includes("ekran görüntüsü") && !norm.includes("screenshot")) {
+    return null;
+  }
+  return { open: containsWholeWord(norm, ["aç", "ac"]) };
+}
+
+// "Chrome'u ac", "not defterini ac", "hesap makinesini ac" gibi bilinen uygulama
+// acma komutlarini algilar.
+const APP_OPEN_WORDS = ["aç", "ac", "başlat", "baslat"];
+const APP_NAME_MAP = {
+  "not defteri": "not defteri",
+  notepad: "not defteri",
+  "hesap makinesi": "hesap makinesi",
+  chrome: "chrome",
+  spotify: "spotify",
+  "dosya gezgini": "dosya gezgini",
+  gezgin: "dosya gezgini",
+  "görev yöneticisi": "gorev yoneticisi",
+  "gorev yoneticisi": "gorev yoneticisi",
+  paint: "paint",
+  word: "word",
+  excel: "excel",
+};
+
+function parseAppCommand(text) {
+  const norm = normalizeCommand(text);
+  if (norm.includes("whatsapp") && norm.includes("web")) return null; // web komutuna birak
+  if (!containsWholeWord(norm, APP_OPEN_WORDS)) return null;
+  for (const [spoken, key] of Object.entries(APP_NAME_MAP)) {
+    if (norm.includes(spoken)) {
+      return { app: key };
+    }
+  }
+  if (norm.includes("whatsapp")) return { app: "whatsapp" };
+  return null;
+}
+
+// Google arama, Vikipedi ve WhatsApp Web gibi genel web islemlerini algilar.
+function parseWebCommand(text) {
+  const norm = normalizeCommand(text);
+
+  if (norm.includes("whatsapp") && norm.includes("web")) {
+    return { site: "whatsapp" };
+  }
+
+  if (norm.includes("vikipedi") || norm.includes("wikipedia")) {
+    if (containsWholeWord(norm, ["ara", "arat", "arama", "bak"])) {
+      const query = norm
+        .replace(/(vikipedi|wikipedia)\s*'?(de|da|den|dan)?/gi, "")
+        .replace(/\b(ara|arat|arama|bak)\b/gi, "")
+        .replace(/\s+/g, " ")
+        .trim();
+      return { site: "wikipedia", query: query || null };
+    }
+    if (containsWholeWord(norm, APP_OPEN_WORDS)) {
+      return { site: "wikipedia", query: null };
+    }
+    return null;
+  }
+
+  if (norm.includes("google") && containsWholeWord(norm, ["ara", "arat", "arama"])) {
+    const query = norm
+      .replace(/google\s*'?(da|de|dan|den)?/gi, "")
+      .replace(/\b(ara|arat|arama)\b/gi, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    return { site: "google", query: query || null };
   }
 
   return null;
@@ -582,6 +725,25 @@ async function processUserText(userText) {
     return;
   }
 
+  const mediaCommand = parseMediaCommand(userText);
+  if (mediaCommand) {
+    try {
+      const res = await fetch("/api/system/media", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: mediaCommand.action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Medya komutu calismadi");
+      const mesajlar = { next: "Sonraki parcaya gectim.", previous: "Onceki parcaya döndüm.", playpause: "Tamam." };
+      await speak(mesajlar[mediaCommand.action] || "Tamam.");
+    } catch (err) {
+      addBubble("system", `Hata: ${err.message}`);
+      setOrbState("idle");
+    }
+    return;
+  }
+
   const musicCommand = parseMusicCommand(userText);
   if (musicCommand) {
     if (!musicCommand.query) {
@@ -611,6 +773,109 @@ async function processUserText(userText) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Ses ayarlanamadi");
       await speak(`Tamam, sesi yuzde ${data.percent} yaptim.`);
+    } catch (err) {
+      addBubble("system", `Hata: ${err.message}`);
+      setOrbState("idle");
+    }
+    return;
+  }
+
+  const brightnessCommand = parseBrightnessCommand(userText);
+  if (brightnessCommand) {
+    try {
+      const body =
+        brightnessCommand.type === "delta" ? { delta: brightnessCommand.delta } : { percent: brightnessCommand.percent };
+      const res = await fetch("/api/system/brightness", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Parlaklik ayarlanamadi");
+      await speak(`Tamam, parlakligi yuzde ${data.percent} yaptim.`);
+    } catch (err) {
+      addBubble("system", `Hata: ${err.message}`);
+      setOrbState("idle");
+    }
+    return;
+  }
+
+  const powerCommand = parsePowerCommand(userText);
+  if (powerCommand) {
+    try {
+      const res = await fetch("/api/system/power", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: powerCommand.action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Islem yapilamadi");
+      const mesajlar = {
+        lock: "Bilgisayari kilitledim.",
+        shutdown: "Bilgisayari 60 saniye icinde kapatiyorum. Vazgecmek icin 'kapatmayi iptal et' diyebilirsin.",
+        restart: "Bilgisayari 60 saniye icinde yeniden baslatiyorum. Vazgecmek icin 'kapatmayi iptal et' diyebilirsin.",
+        hibernate: "Bilgisayari uyku moduna aliyorum.",
+        cancel: "Kapatma islemini iptal ettim.",
+      };
+      await speak(mesajlar[powerCommand.action] || "Tamam.");
+    } catch (err) {
+      addBubble("system", `Hata: ${err.message}`);
+      setOrbState("idle");
+    }
+    return;
+  }
+
+  const screenshotCommand = parseScreenshotCommand(userText);
+  if (screenshotCommand) {
+    try {
+      const res = await fetch("/api/system/screenshot", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ open: screenshotCommand.open }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Ekran goruntusu alinamadi");
+      await speak(
+        screenshotCommand.open
+          ? "Ekran goruntusunu aldim ve actim."
+          : "Ekran goruntusunu masaustune kaydettim."
+      );
+    } catch (err) {
+      addBubble("system", `Hata: ${err.message}`);
+      setOrbState("idle");
+    }
+    return;
+  }
+
+  const appCommand = parseAppCommand(userText);
+  if (appCommand) {
+    try {
+      const res = await fetch("/api/system/open-app", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ app: appCommand.app }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Uygulama acilamadi");
+      await speak(`Tamam, ${appCommand.app} aciyorum.`);
+    } catch (err) {
+      addBubble("system", `Hata: ${err.message}`);
+      setOrbState("idle");
+    }
+    return;
+  }
+
+  const webCommand = parseWebCommand(userText);
+  if (webCommand) {
+    try {
+      const res = await fetch("/api/system/open-web", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(webCommand),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Sayfa acilamadi");
+      await speak("Tamam, aciyorum.");
     } catch (err) {
       addBubble("system", `Hata: ${err.message}`);
       setOrbState("idle");
