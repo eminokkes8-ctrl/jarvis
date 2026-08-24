@@ -68,3 +68,42 @@ export async function synthesizeSpeech(text) {
   const arrayBuffer = await res.arrayBuffer();
   return Buffer.from(arrayBuffer);
 }
+
+const CHAT_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+/**
+ * OpenAI Chat Completions API'ye bir sohbet turu gonderir (ucretli, "LLM_PROVIDER=openai"
+ * secilirse kullanilir).
+ * @param {{system?: string, messages: {role: "user"|"assistant", content: string}[], maxTokens?: number}} params
+ * @returns {Promise<string>}
+ */
+export async function callOpenAIChat({ system, messages, maxTokens = 1024 }) {
+  const apiKey = requireApiKey();
+
+  const chatMessages = [];
+  if (system) chatMessages.push({ role: "system", content: system });
+  for (const m of messages) {
+    chatMessages.push({ role: m.role === "assistant" ? "assistant" : "user", content: m.content });
+  }
+
+  const res = await fetch(`${OPENAI_API_BASE}/chat/completions`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: CHAT_MODEL,
+      messages: chatMessages,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`OpenAI sohbet API hatasi (${res.status}): ${errText}`);
+  }
+
+  const data = await res.json();
+  return (data.choices?.[0]?.message?.content || "").trim();
+}

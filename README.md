@@ -14,13 +14,16 @@ calisacak sekilde ayarlanmistir (Google Gemini + tarayici sesi).
     `OPENAI_API_KEY` ve OpenAI hesabinda kullanilabilir bakiye gerektirir.
   - Arayuzdeki ust kisimdaki secim kutularindan istedigin an gecis yapabilirsin;
     tercihin tarayicida hatirlanir.
-- **Konusma zekasi - uc saglayici secenegi**:
+- **Konusma zekasi - dort saglayici secenegi**:
   - **Ollama (ucretsiz, API ANAHTARI GEREKTIRMEZ)**: `.env` icinde `GEMINI_API_KEY`
     bos birakilirsa otomatik olarak devreye girer. Bilgisayarinda
     [Ollama](https://ollama.com) kurulu ve acik olmali (`ollama run llama3.1` ile
     model bir kere indirilir). Hicbir hesap, kredi karti ya da API anahtari gerekmez.
   - **Google Gemini (ucretsiz, API anahtari ister)**: Google AI Studio'nun ucretsiz
     katmani, kredi karti gerekmez ama `GEMINI_API_KEY` ister (`LLM_PROVIDER=gemini`).
+    Dakika basina istek siniri var (ucretsiz katmanin dogal siniri).
+  - **OpenAI GPT (ucretli)**: `.env`'de `LLM_PROVIDER=openai` ve `OPENAI_API_KEY`
+    ile. Varsayilan model `gpt-4o-mini` (ucuz+hizli); `OPENAI_MODEL` ile degistirilebilir.
   - **Anthropic Claude (ucretli)**: Daha guclu bir model istersen `.env`'de
     `LLM_PROVIDER=anthropic` yapabilirsin; bu durumda `ANTHROPIC_API_KEY` gerekir.
   - Hicbir `LLM_PROVIDER` ya da `GEMINI_API_KEY` girmezsen, hicbir API anahtari
@@ -191,7 +194,7 @@ gecersen gerekir.
 | *(hicbiri)* | Sohbet, Ollama ile - API anahtari GEREKMEZ | ollama.com (yerel kurulum) |
 | `GEMINI_API_KEY` | Sohbet, Gemini ile - ucretsiz ama anahtar ister | aistudio.google.com/apikey |
 | `ANTHROPIC_API_KEY` | Sadece `LLM_PROVIDER=anthropic` ise: sohbet + web arama - ucretli | console.anthropic.com |
-| `OPENAI_API_KEY` | Sadece "OpenAI" ses modu secilirse: Whisper (STT) + TTS - ucretli | platform.openai.com |
+| `OPENAI_API_KEY` | "OpenAI" ses modu (Whisper+TTS) ve/ya `LLM_PROVIDER=openai` (sohbet) icin - ucretli | platform.openai.com |
 
 `.env` icindeki `LLM_PROVIDER`, `GEMINI_MODEL`, `OLLAMA_HOST`, `OLLAMA_MODEL`,
 `CLAUDE_MODEL`, `CLAUDE_BACKGROUND_MODEL`, `CHAT_MAX_TOKENS`, `TTS_VOICE`,
@@ -207,7 +210,7 @@ src/
   lib/gemini.js          Google Gemini API istemcisi (ucretsiz katman)
   lib/ollama.js          Yerel Ollama istemcisi (API anahtari GEREKMEZ)
   lib/anthropic.js       Claude Messages API istemcisi (+ web_search araci)
-  lib/openai.js          Whisper (STT) + TTS API istemcisi
+  lib/openai.js          Whisper (STT) + TTS + sohbet (LLM_PROVIDER=openai) API istemcisi
   lib/systemControl.js   Yerel bilgisayarda Chrome acma + (Windows) sistem sesi ayarlama
   routes/
     transcribe.js        POST /api/transcribe        - ses -> metin

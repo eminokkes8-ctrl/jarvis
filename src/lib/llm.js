@@ -1,14 +1,16 @@
 import { callClaude, webSearchTool, BACKGROUND_MODEL } from "./anthropic.js";
 import { callGemini } from "./gemini.js";
 import { callOllama } from "./ollama.js";
+import { callOpenAIChat } from "./openai.js";
 
-// Saglayici secimi: LLM_PROVIDER acikca "anthropic" ya da "ollama" ise onu kullan.
-// Aksi halde: GEMINI_API_KEY tanimliysa Gemini (ucretsiz, bulut); o da yoksa hicbir
-// API anahtari GEREKTIRMEYEN yerel Ollama'ya dus (bilgisayarinda Ollama kurulu ve
-// acik olmali). Yani hicbir .env ayari yapmadan da (API anahtarsiz) calisir.
+// Saglayici secimi: LLM_PROVIDER acikca "anthropic"/"ollama"/"openai"/"gemini" ise
+// onu kullan. Aksi halde: GEMINI_API_KEY tanimliysa Gemini (ucretsiz, bulut); o da
+// yoksa hicbir API anahtari GEREKTIRMEYEN yerel Ollama'ya dus (bilgisayarinda Ollama
+// kurulu ve acik olmali). Yani hicbir .env ayari yapmadan da (API anahtarsiz) calisir.
 function resolveProvider() {
   if (process.env.LLM_PROVIDER === "anthropic") return "anthropic";
   if (process.env.LLM_PROVIDER === "ollama") return "ollama";
+  if (process.env.LLM_PROVIDER === "openai") return "openai";
   if (process.env.LLM_PROVIDER === "gemini") return "gemini";
   if (process.env.GEMINI_API_KEY) return "gemini";
   return "ollama";
@@ -34,6 +36,9 @@ export async function callLLM({ system, messages, maxTokens, background = false,
   }
   if (LLM_PROVIDER === "ollama") {
     return callOllama({ system, messages, maxTokens });
+  }
+  if (LLM_PROVIDER === "openai") {
+    return callOpenAIChat({ system, messages, maxTokens });
   }
   return callClaude({
     system,
