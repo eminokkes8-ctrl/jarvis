@@ -61,7 +61,7 @@ const MUSIC_ACTION_WORDS = [
   "çalabilir misin", "calabilir misin", "açabilir misin", "acabilir misin",
   "çalar mısın", "calar misin", "açar mısın", "acar misin",
   "oynatır mısın", "oynatir misin", "başlatır mısın", "baslatir misin",
-  "çal", "cal", "aç", "ac", "oynat", "başlat", "baslat",
+  "çal", "cal", "aç", "ac", "oynat", "başlat", "baslat", "dinle",
 ].sort((a, b) => b.length - a.length);
 
 function escapeRegExp(s) {
@@ -98,6 +98,30 @@ function parseMusicCommand(text) {
     .trim();
 
   return { query: query || null };
+}
+
+// Muzik baglami (muzik/sarki/youtube) hic gecmese bile - ornegin "son mektup mix ac"
+// gibi - digger hicbir komut eslesmezse SON CARE olarak bunu da muzik komutu sayariz.
+// Bu, orijinal Alvinn projesindeki "bilinen bir uygulama degilse ve calma fiiliyle
+// bitiyorsa YouTube'da ara" mantigina benzer. processUserText icinde digerlerinin
+// HEPSİNDEN SONRA kontrol edilir; boylece "sesi ac", "chrome'u ac" gibi komutlar
+// kendi ozel parser'larinda zaten yakalanmis olur ve buraya hic ulasmaz.
+function parseGenericPlayCommand(text) {
+  const norm = normalizeCommand(text);
+  const match = MUSIC_ACTION_RE.exec(norm);
+  if (!match) return null;
+
+  const before = norm.slice(0, match.index);
+  const after = norm.slice(match.index + match[0].length);
+  const candidate = after.trim().length > 1 ? after : before;
+
+  const query = candidate
+    .replace(/^[,\s]+|[,\s]+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!query || query.length < 2) return null;
+  return { query };
 }
 
 function playYouTube(query) {
@@ -880,6 +904,17 @@ async function processUserText(userText) {
       addBubble("system", `Hata: ${err.message}`);
       setOrbState("idle");
     }
+    return;
+  }
+
+  const genericPlayCommand = parseGenericPlayCommand(userText);
+  if (genericPlayCommand) {
+    const openedInChrome = await openMusicOnSystem(genericPlayCommand.query);
+    await speak(
+      openedInChrome
+        ? `Tamam, Chrome'da "${genericPlayCommand.query}" icin YouTube'u aciyorum.`
+        : `Chrome'u su bilgisayarda acamadim, "${genericPlayCommand.query}" icin burada caliyorum.`
+    );
     return;
   }
 
