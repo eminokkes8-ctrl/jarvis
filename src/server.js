@@ -41,4 +41,11 @@ app.get("/api/health", (_req, res) => {
 const PORT = Number(process.env.PORT) || 3000;
 app.listen(PORT, () => {
   console.log(`Jarvis sesli asistan http://localhost:${PORT} adresinde calisiyor`);
+  console.log(`[llm] kullanilan saglayici: ${LLM_PROVIDER}`);
+  if (LLM_PROVIDER === "ollama") {
+    console.log(
+      `[llm] Ollama'nin acik oldugundan ve "${process.env.OLLAMA_MODEL || "llama3.1"}" modelinin ` +
+        `indirilmis oldugundan emin ol (terminalde: ollama run ${process.env.OLLAMA_MODEL || "llama3.1"})`
+    );
+  }
 });

@@ -14,11 +14,18 @@ calisacak sekilde ayarlanmistir (Google Gemini + tarayici sesi).
     `OPENAI_API_KEY` ve OpenAI hesabinda kullanilabilir bakiye gerektirir.
   - Arayuzdeki ust kisimdaki secim kutularindan istedigin an gecis yapabilirsin;
     tercihin tarayicida hatirlanir.
-- **Konusma zekasi - iki saglayici secenegi**:
-  - **Google Gemini (ucretsiz, varsayilan)**: Google AI Studio'nun ucretsiz katmani,
-    kredi karti gerekmez. `LLM_PROVIDER=gemini` (varsayilan).
+- **Konusma zekasi - uc saglayici secenegi**:
+  - **Ollama (ucretsiz, API ANAHTARI GEREKTIRMEZ)**: `.env` icinde `GEMINI_API_KEY`
+    bos birakilirsa otomatik olarak devreye girer. Bilgisayarinda
+    [Ollama](https://ollama.com) kurulu ve acik olmali (`ollama run llama3.1` ile
+    model bir kere indirilir). Hicbir hesap, kredi karti ya da API anahtari gerekmez.
+  - **Google Gemini (ucretsiz, API anahtari ister)**: Google AI Studio'nun ucretsiz
+    katmani, kredi karti gerekmez ama `GEMINI_API_KEY` ister (`LLM_PROVIDER=gemini`).
   - **Anthropic Claude (ucretli)**: Daha guclu bir model istersen `.env`'de
     `LLM_PROVIDER=anthropic` yapabilirsin; bu durumda `ANTHROPIC_API_KEY` gerekir.
+  - Hicbir `LLM_PROVIDER` ya da `GEMINI_API_KEY` girmezsen, hicbir API anahtari
+    olmadan **Ollama ile calisir** - sunucu terminalinde "kullanilan saglayici:"
+    satirini kontrol ederek hangisinin aktif oldugunu gorebilirsin.
 - **Web'de arastirma (sadece Claude ile, varsayilan kapali)**: `LLM_PROVIDER=anthropic`
   ve `ENABLE_WEB_SEARCH=true` ise, guncel bir sey sorulunca Claude'un web arama araci
   (`web_search_20250305`) devreye girer; sonuclar SADECE bilgi kaynagi olarak kullanilir,
@@ -119,10 +126,12 @@ Bu tasarim bilinclidir:
 
 ## Maliyet kontrolu
 
-Varsayilan kurulum **Google Gemini'nin ucretsiz katmanini** kullanir - kredi karti
-gerekmez, normal kisisel kullanimda ucret olusmaz (sadece dakika/gun basina istek
-sayisi sinirlidir). Sesli motoru de "Tarayici (ucretsiz)" modunda tutarsan, tum
-sistem tamamen ucretsiz calisir.
+`.env` dosyasinda `GEMINI_API_KEY` bos birakilirsa **Ollama** (yerel, API anahtari
+gerektirmeyen) kullanilir - hicbir hesap ya da ucret olusmaz. `GEMINI_API_KEY`
+girersen **Google Gemini'nin ucretsiz katmani** kullanilir - kredi karti gerekmez,
+normal kisisel kullanimda ucret olusmaz (sadece dakika/gun basina istek sayisi
+sinirlidir). Sesli motoru de "Tarayici (ucretsiz)" modunda tutarsan, her iki
+durumda da tum sistem tamamen ucretsiz calisir.
 
 `LLM_PROVIDER=anthropic` ile Claude'a gecersen (daha guclu ama ucretli), proje yine
 maliyeti dusuk tutacak onlemler icerir:
@@ -145,36 +154,58 @@ maliyeti dusuk tutacak onlemler icerir:
 
 ## Kurulum
 
+### Secenek A: Hicbir API anahtari girmeden (Ollama)
+
+```bash
+# 1) ollama.com adresinden Ollama'yi indir/kur, sonra bir model indir:
+ollama run llama3.1
+# 2) Jarvis'i kur ve calistir - .env dosyasina DOKUNMANA GEREK YOK:
+npm install
+cp .env.example .env
+npm start
+```
+
+Terminaldeki `[llm] kullanilan saglayici: ollama` satiri Ollama'nin devrede
+oldugunu dogrular. Ollama uygulamasi kapaliysa ya da model indirilmemisse
+sohbet hata verir; `ollama run llama3.1` komutunu calistirip acik birakman
+yeterli (Ollama arka planda `ollama serve` ile API'yi ayaga kaldirir).
+
+### Secenek B: Google Gemini (ucretsiz ama API anahtari ister)
+
 ```bash
 npm install
 cp .env.example .env
-# .env dosyasina en azindan GEMINI_API_KEY degerini gir (aistudio.google.com/apikey - ucretsiz)
+# .env dosyasina GEMINI_API_KEY degerini gir (aistudio.google.com/apikey - ucretsiz)
 npm start        # ya da: npm run dev (kod yamasi onayladiktan sonra canli yeniler)
 ```
 
-Sonra tarayicida `http://localhost:3000` adresini ac. Varsayilan ayarlarla
-(Gemini + Tarayici sesi) hicbir ucret olusmaz; `OPENAI_API_KEY`/`ANTHROPIC_API_KEY`
-girmene sadece o motorlara gecersen gerekir.
+Sonra tarayicida `http://localhost:3000` adresini ac. Sesli motoru "Tarayici
+(ucretsiz)" modunda tutarsan, her iki secenekte de tum sistem tamamen ucretsiz
+calisir; `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` girmene sadece o motorlara
+gecersen gerekir.
 
 ## Gerekli API anahtarlari
 
 | Degisken | Ne icin | Nereden alinir |
 |---|---|---|
-| `GEMINI_API_KEY` | Sohbet (varsayilan saglayici) - ucretsiz | aistudio.google.com/apikey |
+| *(hicbiri)* | Sohbet, Ollama ile - API anahtari GEREKMEZ | ollama.com (yerel kurulum) |
+| `GEMINI_API_KEY` | Sohbet, Gemini ile - ucretsiz ama anahtar ister | aistudio.google.com/apikey |
 | `ANTHROPIC_API_KEY` | Sadece `LLM_PROVIDER=anthropic` ise: sohbet + web arama - ucretli | console.anthropic.com |
 | `OPENAI_API_KEY` | Sadece "OpenAI" ses modu secilirse: Whisper (STT) + TTS - ucretli | platform.openai.com |
 
-`.env` icindeki `LLM_PROVIDER`, `GEMINI_MODEL`, `CLAUDE_MODEL`, `CLAUDE_BACKGROUND_MODEL`,
-`CHAT_MAX_TOKENS`, `TTS_VOICE`, `ENABLE_WEB_SEARCH` ve `WEB_SEARCH_MAX_USES` degerleri
-istege bagli olarak degistirilebilir; `.env.example` her birini aciklar.
+`.env` icindeki `LLM_PROVIDER`, `GEMINI_MODEL`, `OLLAMA_HOST`, `OLLAMA_MODEL`,
+`CLAUDE_MODEL`, `CLAUDE_BACKGROUND_MODEL`, `CHAT_MAX_TOKENS`, `TTS_VOICE`,
+`ENABLE_WEB_SEARCH` ve `WEB_SEARCH_MAX_USES` degerleri istege bagli olarak
+degistirilebilir; `.env.example` her birini aciklar.
 
 ## Proje yapisi
 
 ```
 src/
   server.js              Express uygulamasi, route'lari baglar
-  lib/llm.js             Saglayicidan bagimsiz sohbet cagrisi (Gemini <-> Claude secimi)
+  lib/llm.js             Saglayicidan bagimsiz sohbet cagrisi (Ollama/Gemini/Claude secimi)
   lib/gemini.js          Google Gemini API istemcisi (ucretsiz katman)
+  lib/ollama.js          Yerel Ollama istemcisi (API anahtari GEREKMEZ)
   lib/anthropic.js       Claude Messages API istemcisi (+ web_search araci)
   lib/openai.js          Whisper (STT) + TTS API istemcisi
   lib/systemControl.js   Yerel bilgisayarda Chrome acma + (Windows) sistem sesi ayarlama
