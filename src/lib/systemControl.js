@@ -20,6 +20,32 @@ function run(command) {
 }
 
 /**
+ * YouTube arama sonuclari HTML'inden ILK videonun gercek videoId'sini cikarip
+ * dogrudan /watch?v= adresini dondurur. API anahtari gerekmez. "embed?listType=
+ * search" hilesinden daha guvenilirdir: gercek bir izleme sayfasi oldugu icin
+ * YouTube'un normal otomatik oynatma davranisi devreye girer.
+ * @param {string} query
+ * @returns {Promise<string|null>} bulunursa watch URL'i, bulunamazsa/hata olursa null
+ */
+export async function findFirstYouTubeVideoUrl(query) {
+  try {
+    const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}&hl=tr&gl=TR`;
+    const res = await fetch(searchUrl, {
+      headers: {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "accept-language": "tr,tr;q=0.9",
+      },
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const match = html.match(/"videoRenderer":\{"videoId":"([\w-]{11})"/);
+    return match ? `https://www.youtube.com/watch?v=${match[1]}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Kullanicinin bilgisayarinda gercek bir tarayici (Windows'ta Chrome, macOS'ta
  * Google Chrome, Linux'ta varsayilan tarayici) acip verilen URL'ye gider.
  * @param {string} url sadece https://www.youtube.com/ ile baslayan adreslere izin verilir

@@ -1,5 +1,10 @@
 import { Router } from "express";
-import { openUrlInChrome, getSystemVolumePercent, setSystemVolumePercent } from "../lib/systemControl.js";
+import {
+  openUrlInChrome,
+  findFirstYouTubeVideoUrl,
+  getSystemVolumePercent,
+  setSystemVolumePercent,
+} from "../lib/systemControl.js";
 
 export const systemRouter = Router();
 
@@ -11,10 +16,12 @@ systemRouter.post("/api/system/open-youtube", async (req, res) => {
     if (!query || typeof query !== "string") {
       return res.status(400).json({ error: "query alani zorunlu" });
     }
-    // "results?search_query=" sadece arama listesi acar, video baslatmaz. "embed" +
-    // listType=search + autoplay=1 ise dogrudan arama sonucunun ilk videosunu calan
-    // bir oynatici sayfasi acar - kullaniciya tiklamasi gerekmez.
-    const url = `https://www.youtube.com/embed?autoplay=1&listType=search&list=${encodeURIComponent(query)}`;
+    // Once arama sonuclarindan GERCEK bir video bulup dogrudan /watch?v= acmayi
+    // dene (en guvenilir yol - normal bir izleme sayfasi, YouTube'un kendi
+    // otomatik oynatma davranisi calisir). Bulunamazsa embed?listType=search
+    // hilesine geri dus.
+    const directUrl = await findFirstYouTubeVideoUrl(query);
+    const url = directUrl || `https://www.youtube.com/embed?autoplay=1&listType=search&list=${encodeURIComponent(query)}`;
     await openUrlInChrome(url);
     res.json({ ok: true, url });
   } catch (err) {
