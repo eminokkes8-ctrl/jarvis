@@ -83,14 +83,18 @@ calisacak sekilde ayarlanmistir (Google Gemini + tarayici sesi).
   yoksayilir. Bu GERCEK bir konusmaci dogrulamasi DEGILDIR - ucretsiz ve basit bir
   yaklastirmadir, yanlis kabul/red olabilir. Profil kaydedilmediyse hicbir filtreleme
   yapilmaz (herkesin sesi kabul edilir).
-- **YouTube video ozetleme**: Yan paneldeki "Video Ozetle" kutusuna bir YouTube linki
-  yapistirip "Ozetle"ye basinca, Jarvis videonun altyazi/transkript metnini cekip
-  LLM ile Turkce ozet cikarir ve sesli okur. **Onemli sinirlama**: Jarvis videoyu
-  gercekten izlemez/dinlemez - sadece YouTube'un altyazi metnini okur. YouTube bazi
-  sunuculardan (ozellikle bulut ortamlarindan) otomatik altyazi indirmeyi
-  engelleyebilir; bu durumda arayuz sana YouTube'da "..." > "Transkripti goster" ile
-  metni elle kopyalayip yapistirma secenegi sunar. Ozet, hafiza modulune de kalici
-  bilgi olarak eklenir (sonraki sohbetlerde hatirlanir).
+- **Video/ses ozetleme - iki yol**: Yan paneldeki "Video Ozetle" panelinde:
+  - **YouTube linkinden**: bir link yapistirip "Linkten Ozetle"ye basinca, Jarvis
+    videonun altyazi/transkript metnini cekip LLM ile Turkce ozet cikarir. YouTube
+    bazi sunuculardan (ozellikle bulut ortamlarindan) otomatik altyazi indirmeyi
+    engelleyebilir; bu durumda arayuz "..." > "Transkripti goster" ile kopyaladigin
+    metni elle yapistirma secenegi sunar.
+  - **Dosya yukleyerek (GERCEKTEN dinler)**: bir video/ses dosyasini (en fazla 25MB)
+    dogrudan yukleyip "Dosyayi Dinle ve Ozetle"ye basinca, Jarvis OpenAI Whisper ile
+    konusmayi gercekten sesten metne cevirir - YouTube'un altyazi korumasina hic
+    takilmaz. Bu yol icin `.env`'de `OPENAI_API_KEY` gerekir (Whisper ucretlidir).
+  - Her iki yolda da ozet, hafiza modulune kalici bilgi olarak eklenir (sonraki
+    sohbetlerde hatirlanir) ve sesli okunur.
 
 ## Bilgisayar kontrolu (Windows) - onemli sinirlama
 

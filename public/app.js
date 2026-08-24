@@ -524,12 +524,15 @@ resetVoiceButton?.addEventListener("click", () => {
   addBubble("system", "Ses profili silindi, artik herkesin sesi kabul edilecek.");
 });
 
-// --- YouTube video ozetleme paneli --------------------------------------------------
-// Jarvis videoyu "izlemez/dinlemez" - altyazi/transkript metnini okuyup LLM ile ozetler.
-// Otomatik altyazi indirme YouTube'un koruma onlemleri yuzunden bazi videolarda/ortamlarda
-// basarisiz olabilir; bu durumda kullanici transkripti elle yapistirabilir.
+// --- Video/ses ozetleme paneli -------------------------------------------------------
+// Iki yol var: (1) YouTube linkinden altyazi cekip ozetleme - YouTube bazi videolarda
+// bunu engelleyebilir, o zaman transkript elle yapistirilir. (2) Bir video/ses dosyasini
+// DOGRUDAN yukleyip Whisper ile GERCEKTEN dinletme - bu YouTube'un altyazi korumasina
+// takilmaz ama OPENAI_API_KEY (Whisper, ucretli) gerektirir.
 const youtubeSummaryUrl = document.getElementById("youtube-summary-url");
 const youtubeSummaryButton = document.getElementById("youtube-summary-button");
+const youtubeSummaryFile = document.getElementById("youtube-summary-file");
+const youtubeSummaryFileButton = document.getElementById("youtube-summary-file-button");
 const youtubeSummaryManual = document.getElementById("youtube-summary-manual");
 const youtubeSummaryManualButton = document.getElementById("youtube-summary-manual-button");
 const youtubeSummaryStatus = document.getElementById("youtube-summary-status");
@@ -592,6 +595,45 @@ youtubeSummaryManualButton?.addEventListener("click", () => {
   }
   requestYoutubeSummary(manual);
 });
+
+async function requestFileSummary() {
+  const file = youtubeSummaryFile?.files?.[0];
+  if (!file) {
+    youtubeSummaryStatus.textContent = "Once bir video/ses dosyasi sec.";
+    return;
+  }
+  if (file.size > 25 * 1024 * 1024) {
+    youtubeSummaryStatus.textContent = "Dosya 25MB sinirini asiyor - daha kisa/kucuk bir dosya dene.";
+    return;
+  }
+
+  youtubeSummaryFileButton.disabled = true;
+  youtubeSummaryStatus.textContent = `"${file.name}" dinleniyor (bu biraz zaman alabilir)...`;
+  youtubeSummaryResult.textContent = "";
+
+  try {
+    const form = new FormData();
+    form.append("media", file);
+    const res = await fetch("/api/youtube/summarize-upload", { method: "POST", body: form });
+    const data = await res.json();
+
+    if (!res.ok) {
+      youtubeSummaryStatus.textContent = `Hata: ${data.error || "bilinmeyen hata"}`;
+      return;
+    }
+
+    youtubeSummaryStatus.textContent = `"${data.title}"`;
+    youtubeSummaryResult.textContent = data.summary;
+    refreshLearnedPanel();
+    await speak(data.summary);
+  } catch (err) {
+    youtubeSummaryStatus.textContent = `Hata: ${err.message}`;
+  } finally {
+    youtubeSummaryFileButton.disabled = false;
+  }
+}
+
+youtubeSummaryFileButton?.addEventListener("click", requestFileSummary);
 
 // Bir dinleme oturumu sirasinda calisan ses analizini durdurup ornegi dondurur;
 // mikrofon akisini da kapatir. Analiz/akis zaten yoksa zararsizca hicbir sey yapmaz.
