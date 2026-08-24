@@ -10,6 +10,7 @@ import { selfImproveRouter } from "./routes/selfImprove.js";
 import { stateRouter } from "./routes/state.js";
 import { patchesRouter } from "./routes/patches.js";
 import { systemRouter } from "./routes/system.js";
+import { youtubeRouter } from "./routes/youtube.js";
 import { LLM_PROVIDER } from "./lib/llm.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -26,6 +27,7 @@ app.use(selfImproveRouter);
 app.use(stateRouter);
 app.use(patchesRouter);
 app.use(systemRouter);
+app.use(youtubeRouter);
 
 app.get("/api/health", (_req, res) => {
   res.json({

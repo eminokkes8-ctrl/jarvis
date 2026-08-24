@@ -83,6 +83,14 @@ calisacak sekilde ayarlanmistir (Google Gemini + tarayici sesi).
   yoksayilir. Bu GERCEK bir konusmaci dogrulamasi DEGILDIR - ucretsiz ve basit bir
   yaklastirmadir, yanlis kabul/red olabilir. Profil kaydedilmediyse hicbir filtreleme
   yapilmaz (herkesin sesi kabul edilir).
+- **YouTube video ozetleme**: Yan paneldeki "Video Ozetle" kutusuna bir YouTube linki
+  yapistirip "Ozetle"ye basinca, Jarvis videonun altyazi/transkript metnini cekip
+  LLM ile Turkce ozet cikarir ve sesli okur. **Onemli sinirlama**: Jarvis videoyu
+  gercekten izlemez/dinlemez - sadece YouTube'un altyazi metnini okur. YouTube bazi
+  sunuculardan (ozellikle bulut ortamlarindan) otomatik altyazi indirmeyi
+  engelleyebilir; bu durumda arayuz sana YouTube'da "..." > "Transkripti goster" ile
+  metni elle kopyalayip yapistirma secenegi sunar. Ozet, hafiza modulune de kalici
+  bilgi olarak eklenir (sonraki sohbetlerde hatirlanir).
 
 ## Bilgisayar kontrolu (Windows) - onemli sinirlama
 
@@ -212,6 +220,7 @@ src/
   lib/anthropic.js       Claude Messages API istemcisi (+ web_search araci)
   lib/openai.js          Whisper (STT) + TTS + sohbet (LLM_PROVIDER=openai) API istemcisi
   lib/systemControl.js   Yerel bilgisayarda Chrome acma + (Windows) sistem sesi ayarlama
+  lib/youtube.js          YouTube video ID cikarma + altyazi/transkript cekme (youtubei.js)
   routes/
     transcribe.js        POST /api/transcribe        - ses -> metin
     chat.js               POST /api/chat              - metin -> LLM cevabi
@@ -223,6 +232,7 @@ src/
                            POST /api/patches/:id/reject - yamayi reddet
     system.js              POST /api/system/open-youtube - yerel bilgisayarda Chrome ac
                            POST /api/system/volume       - (Windows) sistem sesini ayarla
+    youtube.js              POST /api/youtube/summarize  - video altyazisini ozetle
   memory/
     store.js              data/memory.json okuma/yazma
     extract.js             her turdan kalici bilgi cikarma

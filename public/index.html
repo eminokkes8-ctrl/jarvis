@@ -172,6 +172,40 @@
           </p>
           <div id="patches-content" class="panel-content patches-content">Yukleniyor...</div>
         </div>
+
+        <div class="panel">
+          <h2>Video Ozetle</h2>
+          <p class="panel-hint">
+            Bir YouTube linki yapistir - Jarvis altyazisini okuyup Turkce ozet cikarir ve
+            sesli okur. Not: Jarvis videoyu izlemez/dinlemez, sadece altyazi metnini okur;
+            bazi videolarda YouTube altyazi indirmeyi engelleyebilir, o durumda transkripti
+            elle yapistirabilirsin.
+          </p>
+          <input
+            id="youtube-summary-url"
+            class="text-input"
+            type="text"
+            placeholder="https://www.youtube.com/watch?v=..."
+          />
+          <div class="voice-profile-row">
+            <button id="youtube-summary-button" class="ghost-button" type="button">
+              Ozetle
+            </button>
+          </div>
+          <textarea
+            id="youtube-summary-manual"
+            class="text-input manual-transcript"
+            placeholder="Otomatik alinamazsa: YouTube'da '...' > 'Transkripti goster' ile kopyaladigin metni buraya yapistir"
+            hidden
+          ></textarea>
+          <div class="voice-profile-row">
+            <button id="youtube-summary-manual-button" class="ghost-button" type="button" hidden>
+              Yapistirilani ozetle
+            </button>
+          </div>
+          <div id="youtube-summary-status" class="voice-profile-status"></div>
+          <div id="youtube-summary-result" class="panel-content"></div>
+        </div>
       </aside>
     </main>
   </div>

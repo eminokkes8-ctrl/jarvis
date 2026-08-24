@@ -524,6 +524,75 @@ resetVoiceButton?.addEventListener("click", () => {
   addBubble("system", "Ses profili silindi, artik herkesin sesi kabul edilecek.");
 });
 
+// --- YouTube video ozetleme paneli --------------------------------------------------
+// Jarvis videoyu "izlemez/dinlemez" - altyazi/transkript metnini okuyup LLM ile ozetler.
+// Otomatik altyazi indirme YouTube'un koruma onlemleri yuzunden bazi videolarda/ortamlarda
+// basarisiz olabilir; bu durumda kullanici transkripti elle yapistirabilir.
+const youtubeSummaryUrl = document.getElementById("youtube-summary-url");
+const youtubeSummaryButton = document.getElementById("youtube-summary-button");
+const youtubeSummaryManual = document.getElementById("youtube-summary-manual");
+const youtubeSummaryManualButton = document.getElementById("youtube-summary-manual-button");
+const youtubeSummaryStatus = document.getElementById("youtube-summary-status");
+const youtubeSummaryResult = document.getElementById("youtube-summary-result");
+
+async function requestYoutubeSummary(manualTranscript) {
+  const url = youtubeSummaryUrl?.value.trim();
+  if (!url) {
+    youtubeSummaryStatus.textContent = "Once bir YouTube linki gir.";
+    return;
+  }
+
+  youtubeSummaryButton.disabled = true;
+  if (youtubeSummaryManualButton) youtubeSummaryManualButton.disabled = true;
+  youtubeSummaryStatus.textContent = "Video bilgisi aliniyor ve ozetleniyor...";
+  youtubeSummaryResult.textContent = "";
+
+  try {
+    const res = await fetch("/api/youtube/summarize", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url, manualTranscript }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (data.needsManualTranscript) {
+        youtubeSummaryStatus.textContent = `"${data.title}" - altyazi otomatik alinamadi. Transkripti elle yapistir.`;
+        if (youtubeSummaryManual) youtubeSummaryManual.hidden = false;
+        if (youtubeSummaryManualButton) youtubeSummaryManualButton.hidden = false;
+      } else {
+        youtubeSummaryStatus.textContent = `Hata: ${data.error || "bilinmeyen hata"}`;
+      }
+      return;
+    }
+
+    youtubeSummaryStatus.textContent = `"${data.title}"${data.author ? ` - ${data.author}` : ""}`;
+    youtubeSummaryResult.textContent = data.summary;
+    if (youtubeSummaryManual) {
+      youtubeSummaryManual.hidden = true;
+      youtubeSummaryManual.value = "";
+    }
+    if (youtubeSummaryManualButton) youtubeSummaryManualButton.hidden = true;
+    refreshLearnedPanel();
+    await speak(data.summary);
+  } catch (err) {
+    youtubeSummaryStatus.textContent = `Hata: ${err.message}`;
+  } finally {
+    youtubeSummaryButton.disabled = false;
+    if (youtubeSummaryManualButton) youtubeSummaryManualButton.disabled = false;
+  }
+}
+
+youtubeSummaryButton?.addEventListener("click", () => requestYoutubeSummary());
+youtubeSummaryManualButton?.addEventListener("click", () => {
+  const manual = youtubeSummaryManual?.value.trim();
+  if (!manual || manual.length < 20) {
+    youtubeSummaryStatus.textContent = "Yapistirilan transkript cok kisa gorunuyor.";
+    return;
+  }
+  requestYoutubeSummary(manual);
+});
+
 // Bir dinleme oturumu sirasinda calisan ses analizini durdurup ornegi dondurur;
 // mikrofon akisini da kapatir. Analiz/akis zaten yoksa zararsizca hicbir sey yapmaz.
 let currentVoiceAnalyzer = null;
