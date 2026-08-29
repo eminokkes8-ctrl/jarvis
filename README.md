@@ -17,7 +17,7 @@ calisacak sekilde ayarlanmistir (Google Gemini + tarayici sesi).
 - **Konusma zekasi - dort saglayici secenegi**:
   - **Ollama (ucretsiz, API ANAHTARI GEREKTIRMEZ)**: `.env` icinde `GEMINI_API_KEY`
     bos birakilirsa otomatik olarak devreye girer. Bilgisayarinda
-    [Ollama](https://ollama.com) kurulu ve acik olmali (`ollama run llama3.1` ile
+    [Ollama](https://ollama.com) kurulu ve acik olmali (`ollama run hermes3` ile
     model bir kere indirilir). Hicbir hesap, kredi karti ya da API anahtari gerekmez.
   - **Google Gemini (ucretsiz, API anahtari ister)**: Google AI Studio'nun ucretsiz
     katmani, kredi karti gerekmez ama `GEMINI_API_KEY` ister (`LLM_PROVIDER=gemini`).
@@ -173,7 +173,7 @@ maliyeti dusuk tutacak onlemler icerir:
 
 ```bash
 # 1) ollama.com adresinden Ollama'yi indir/kur, sonra bir model indir:
-ollama run llama3.1
+ollama run hermes3
 # 2) Jarvis'i kur ve calistir - .env dosyasina DOKUNMANA GEREK YOK:
 npm install
 cp .env.example .env
@@ -182,7 +182,7 @@ npm start
 
 Terminaldeki `[llm] kullanilan saglayici: ollama` satiri Ollama'nin devrede
 oldugunu dogrular. Ollama uygulamasi kapaliysa ya da model indirilmemisse
-sohbet hata verir; `ollama run llama3.1` komutunu calistirip acik birakman
+sohbet hata verir; `ollama run hermes3` komutunu calistirip acik birakman
 yeterli (Ollama arka planda `ollama serve` ile API'yi ayaga kaldirir).
 
 ### Secenek B: Google Gemini (ucretsiz ama API anahtari ister)

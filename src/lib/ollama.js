@@ -1,5 +1,8 @@
 const DEFAULT_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
-const DEFAULT_MODEL = process.env.OLLAMA_MODEL || "llama3.1";
+// Hermes 3 (Nous Research), guclu fonksiyon-cagirma/agent yetenekleriyle bilinen acik
+// kaynak bir model - varsayilan olarak secildi (genel llama3.1'e gore talimat takibi
+// daha iyi, ileride LLM'in dogrudan komut/tool secmesine gecilirse de hazir olur).
+const DEFAULT_MODEL = process.env.OLLAMA_MODEL || "hermes3";
 
 /**
  * Yerel Ollama sunucusuna (bilgisayarinda calisan, API anahtari GEREKTIRMEYEN)

@@ -46,8 +46,8 @@ app.listen(PORT, () => {
   console.log(`[llm] kullanilan saglayici: ${LLM_PROVIDER}`);
   if (LLM_PROVIDER === "ollama") {
     console.log(
-      `[llm] Ollama'nin acik oldugundan ve "${process.env.OLLAMA_MODEL || "llama3.1"}" modelinin ` +
-        `indirilmis oldugundan emin ol (terminalde: ollama run ${process.env.OLLAMA_MODEL || "llama3.1"})`
+      `[llm] Ollama'nin acik oldugundan ve "${process.env.OLLAMA_MODEL || "hermes3"}" modelinin ` +
+        `indirilmis oldugundan emin ol (terminalde: ollama run ${process.env.OLLAMA_MODEL || "hermes3"})`
     );
   }
 });
